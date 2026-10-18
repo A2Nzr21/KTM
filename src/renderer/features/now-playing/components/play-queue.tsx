@@ -1,0 +1,435 @@
+import clsx from 'clsx';
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import styles from './play-queue.module.css';
+
+import { useItemListColumnReorder } from '/@/renderer/components/item-list/helpers/use-item-list-column-reorder';
+import { useItemListColumnResize } from '/@/renderer/components/item-list/helpers/use-item-list-column-resize';
+import {
+    ItemTableList,
+    TableGroupHeader,
+} from '/@/renderer/components/item-list/item-table-list/item-table-list';
+import { ItemTableListColumn } from '/@/renderer/components/item-list/item-table-list/item-table-list-column';
+import { ItemListHandle } from '/@/renderer/components/item-list/types';
+import { eventEmitter } from '/@/renderer/events/event-emitter';
+import { useIsPlayerFetching, usePlayer } from '/@/renderer/features/player/context/player-context';
+import { searchLibraryItems } from '/@/renderer/features/shared/utils';
+import { useDragDrop } from '/@/renderer/hooks/use-drag-drop';
+import { useHotkeys } from '/@/renderer/hooks/use-hotkeys';
+import {
+    isShuffleEnabled,
+    mapShuffledToQueueIndex,
+    subscribeCurrentTrack,
+    subscribePlayerQueue,
+    useFollowCurrentSong,
+    useListSettings,
+    usePlayerActions,
+    usePlayerSong,
+    usePlayerStore,
+    useSettingsStore,
+} from '/@/renderer/store';
+import { logger } from '/@/renderer/utils/logger';
+import { Flex } from '/@/shared/components/flex/flex';
+import { LoadingOverlay } from '/@/shared/components/loading-overlay/loading-overlay';
+import { Text } from '/@/shared/components/text/text';
+import { useDebouncedValue } from '/@/shared/hooks/use-debounced-value';
+import { useFocusWithin } from '/@/shared/hooks/use-focus-within';
+import { useMergedRef } from '/@/shared/hooks/use-merged-ref';
+import { Folder, LibraryItem, QueueSong, Song } from '/@/shared/types/domain-types';
+import { DragTarget } from '/@/shared/types/drag-and-drop';
+import { ItemListKey, Play } from '/@/shared/types/types';
+
+type QueueProps = {
+    enableScrollShadow?: boolean;
+    listKey: ItemListKey;
+    searchTerm: string | undefined;
+};
+
+export const PlayQueue = forwardRef<ItemListHandle, QueueProps>(
+    ({ enableScrollShadow = true, listKey, searchTerm }, ref) => {
+        const { t } = useTranslation();
+        const { table } = useListSettings(listKey) || {};
+        const upNextQueueEnabled = useSettingsStore((state) => state.general.upNextQueue);
+
+        const isFetching = useIsPlayerFetching();
+        const tableRef = useRef<ItemListHandle>(null);
+        const mergedRef = useMergedRef(ref, tableRef);
+        const { getQueue } = usePlayerActions();
+        const followCurrentSong = useFollowCurrentSong();
+
+        const [debouncedSearchTerm] = useDebouncedValue(searchTerm, 200);
+
+        const [data, setData] = useState<QueueSong[]>([]);
+        const [upNextIds, setUpNextIds] = useState<string[]>([]);
+
+        useEffect(() => {
+            const setQueue = () => {
+                const queue = getQueue() || { groups: [], items: [] };
+
+                setData(queue.items);
+
+                setUpNextIds(usePlayerStore.getState().queue.priority);
+            };
+
+            const unsub = subscribePlayerQueue(() => {
+                setQueue();
+            });
+
+            const unsubCurrentTrack = subscribeCurrentTrack((e) => {
+                if (followCurrentSong && e.index !== -1) {
+                    // Defer a tick so the scroll applies to the updated queue/groups
+                    // row model, not the pre-change layout. Scrolling immediately
+                    // computes the offset against the stale rows, and the follow
+                    // re-apply after re-render then jumps the viewport a second time.
+                    setTimeout(() => {
+                        tableRef.current?.scrollToIndex(e.index, {
+                            align: 'center',
+                            behavior: 'auto',
+                        });
+                    }, 0);
+                }
+            });
+
+            const handleAutoDJQueueAdded = () => {
+                if (followCurrentSong) {
+                    const state = usePlayerStore.getState();
+                    let index = state.player.index;
+
+                    if (isShuffleEnabled(state)) {
+                        index = mapShuffledToQueueIndex(index, state.queue.shuffled);
+                    }
+
+                    if (index !== -1) {
+                        // Use setTimeout to ensure the DOM has updated with the new queue items
+                        setTimeout(() => {
+                            tableRef.current?.scrollToIndex(index, {
+                                align: 'center',
+                                behavior: 'auto',
+                            });
+                        }, 0);
+                    }
+                }
+            };
+
+            eventEmitter.on('AUTODJ_QUEUE_ADDED', handleAutoDJQueueAdded);
+
+            setQueue();
+
+            if (followCurrentSong) {
+                const state = usePlayerStore.getState();
+                let index = state.player.index;
+
+                if (isShuffleEnabled(state)) {
+                    index = mapShuffledToQueueIndex(index, state.queue.shuffled);
+                }
+
+                if (index !== -1) {
+                    setTimeout(() => {
+                        tableRef.current?.scrollToIndex(index, {
+                            align: 'center',
+                            behavior: 'auto',
+                        });
+                    }, 0);
+                }
+            }
+
+            return () => {
+                unsub();
+                unsubCurrentTrack();
+                eventEmitter.off('AUTODJ_QUEUE_ADDED', handleAutoDJQueueAdded);
+            };
+        }, [getQueue, tableRef, followCurrentSong]);
+
+        const filteredData: QueueSong[] = useMemo(() => {
+            if (debouncedSearchTerm) {
+                const searched = searchLibraryItems(data, debouncedSearchTerm, LibraryItem.SONG);
+                return searched;
+            }
+
+            return data;
+        }, [data, debouncedSearchTerm]);
+
+        const isEmpty = filteredData.length === 0;
+
+        // Label the Up Next songs, which always sit directly after the current song
+        const groups: TableGroupHeader[] | undefined = useMemo(() => {
+            if (!upNextQueueEnabled || debouncedSearchTerm || upNextIds.length === 0) {
+                return undefined;
+            }
+
+            const start = data.findIndex((item) => item._uniqueId === upNextIds[0]);
+            if (start === -1) return undefined;
+
+            const sections = [
+                { count: start, label: t('player.queueSection_queue') },
+                { count: upNextIds.length, label: t('player.queueSection_upNext') },
+                {
+                    count: data.length - start - upNextIds.length,
+                    label: t('player.queueSection_queue'),
+                },
+            ].filter((section) => section.count > 0);
+
+            return sections.map(({ count, label }) => ({
+                hideRowBorder: true,
+                itemCount: count,
+                render: () => (
+                    <div className={styles.groupRow}>
+                        <Text
+                            className={styles.groupRowLabel}
+                            fw={600}
+                            isNoSelect
+                            overflow="visible"
+                            size="sm"
+                        >
+                            {label}
+                        </Text>
+                    </div>
+                ),
+            }));
+        }, [data, debouncedSearchTerm, t, upNextIds, upNextQueueEnabled]);
+
+        const { handleColumnReordered } = useItemListColumnReorder({
+            itemListKey: listKey,
+        });
+
+        const { handleColumnResized } = useItemListColumnResize({
+            itemListKey: listKey,
+        });
+
+        const currentSong = usePlayerSong();
+
+        const currentSongUniqueId = currentSong?._uniqueId;
+
+        const { focused, ref: focusWithinRef } = useFocusWithin();
+        const containerRef = useRef<HTMLDivElement>(null);
+        const mergedContainerRef = useMergedRef(containerRef, focusWithinRef);
+        const player = usePlayer();
+
+        const handleRemoveSelected = useCallback(() => {
+            const selectedItems = tableRef.current?.internalState.getSelected() as QueueSong[];
+
+            if (!selectedItems || selectedItems.length === 0) {
+                return;
+            }
+
+            const container = containerRef.current;
+            const isFocused = container?.contains(document.activeElement) ?? focused;
+
+            if (!isFocused) {
+                logger.debug('Queue remove hotkey skipped', { selected: selectedItems.length });
+                return;
+            }
+
+            player.clearSelected(selectedItems);
+        }, [focused, player]);
+
+        // Mac keyboards send Backspace for the key labelled delete, so accept both
+        useHotkeys([
+            ['backspace', handleRemoveSelected],
+            ['delete', handleRemoveSelected],
+        ]);
+
+        return (
+            <div className={styles.container} ref={mergedContainerRef}>
+                <LoadingOverlay pos="absolute" visible={isFetching} />
+                <ItemTableList
+                    activeRowId={currentSongUniqueId}
+                    autoFitColumns={table.autoFitColumns}
+                    autoScrollToActiveRow={followCurrentSong}
+                    CellComponent={ItemTableListColumn}
+                    columns={table.columns}
+                    data={filteredData}
+                    enableAlternateRowColors={table.enableAlternateRowColors}
+                    enableDrag
+                    enableExpansion={false}
+                    enableHeader={table.enableHeader}
+                    enableHorizontalBorders={table.enableHorizontalBorders}
+                    enableRowHoverHighlight={table.enableRowHoverHighlight}
+                    enableScrollShadow={enableScrollShadow}
+                    enableSelection
+                    enableSelectionDialog={false}
+                    enableVerticalBorders={table.enableVerticalBorders}
+                    getRowId="_uniqueId"
+                    groups={groups}
+                    initialTop={{
+                        to: 0,
+                        type: 'offset',
+                    }}
+                    itemType={LibraryItem.QUEUE_SONG}
+                    onColumnReordered={handleColumnReordered}
+                    onColumnResized={handleColumnResized}
+                    ref={mergedRef}
+                    size={table.size}
+                />
+                {isEmpty && <EmptyQueueDropZone />}
+            </div>
+        );
+    },
+);
+
+const EmptyQueueDropZone = () => {
+    const playerContext = usePlayer();
+
+    const { isDraggedOver, ref } = useDragDrop<HTMLDivElement>({
+        drop: {
+            canDrop: () => {
+                return true;
+            },
+            getData: () => {
+                return {
+                    id: [],
+                    item: [],
+                    itemType: LibraryItem.QUEUE_SONG,
+                    type: DragTarget.QUEUE_SONG,
+                };
+            },
+            onDrag: () => {
+                return;
+            },
+            onDragLeave: () => {
+                return;
+            },
+            onDrop: (args) => {
+                if (args.self.type === DragTarget.QUEUE_SONG) {
+                    const sourceServerId = (
+                        args.source.item?.[0] as unknown as { _serverId: string }
+                    )?._serverId;
+
+                    const sourceItemType = args.source.itemType as LibraryItem;
+
+                    switch (args.source.type) {
+                        case DragTarget.ALBUM: {
+                            if (sourceServerId) {
+                                playerContext.addToQueueByFetch(
+                                    sourceServerId,
+                                    args.source.id,
+                                    sourceItemType,
+                                    Play.NOW,
+                                );
+                            }
+                            break;
+                        }
+                        case DragTarget.ALBUM_ARTIST: {
+                            if (sourceServerId) {
+                                playerContext.addToQueueByFetch(
+                                    sourceServerId,
+                                    args.source.id,
+                                    sourceItemType,
+                                    Play.NOW,
+                                );
+                            }
+                            break;
+                        }
+                        case DragTarget.ARTIST: {
+                            if (sourceServerId) {
+                                playerContext.addToQueueByFetch(
+                                    sourceServerId,
+                                    args.source.id,
+                                    sourceItemType,
+                                    Play.NOW,
+                                );
+                            }
+                            break;
+                        }
+                        case DragTarget.FOLDER: {
+                            const items = args.source.item;
+
+                            const { folders, songs } = (items || []).reduce<{
+                                folders: Folder[];
+                                songs: Song[];
+                            }>(
+                                (acc, item) => {
+                                    if ((item as unknown as Song)._itemType === LibraryItem.SONG) {
+                                        acc.songs.push(item as unknown as Song);
+                                    } else if (
+                                        (item as unknown as Folder)._itemType === LibraryItem.FOLDER
+                                    ) {
+                                        acc.folders.push(item as unknown as Folder);
+                                    }
+                                    return acc;
+                                },
+                                { folders: [], songs: [] },
+                            );
+
+                            const folderIds = folders.map((folder) => folder.id);
+
+                            // Handle folders: fetch and add to queue
+                            if (folderIds.length > 0) {
+                                playerContext.addToQueueByFetch(
+                                    sourceServerId,
+                                    folderIds,
+                                    LibraryItem.FOLDER,
+                                    Play.NOW,
+                                );
+                            }
+
+                            // Handle songs: add directly to queue
+                            if (songs.length > 0) {
+                                playerContext.addToQueueByData(songs, Play.NOW);
+                            }
+
+                            break;
+                        }
+                        case DragTarget.GENRE: {
+                            if (sourceServerId) {
+                                playerContext.addToQueueByFetch(
+                                    sourceServerId,
+                                    args.source.id,
+                                    sourceItemType,
+                                    Play.NOW,
+                                );
+                            }
+                            break;
+                        }
+                        case DragTarget.PLAYLIST: {
+                            if (sourceServerId) {
+                                playerContext.addToQueueByFetch(
+                                    sourceServerId,
+                                    args.source.id,
+                                    sourceItemType,
+                                    Play.NOW,
+                                );
+                            }
+                            break;
+                        }
+                        case DragTarget.QUEUE_SONG: {
+                            const sourceItems = (args.source.item || []) as QueueSong[];
+                            if (sourceItems.length > 0) {
+                                playerContext.addToQueueByData(sourceItems, Play.NOW);
+                            }
+                            break;
+                        }
+                        case DragTarget.SONG: {
+                            const sourceItems = (args.source.item || []) as Song[];
+                            if (sourceItems.length > 0) {
+                                playerContext.addToQueueByData(sourceItems, Play.NOW);
+                            }
+                            break;
+                        }
+                        default: {
+                            break;
+                        }
+                    }
+                }
+
+                return;
+            },
+        },
+        isEnabled: true,
+    });
+
+    return (
+        <Flex
+            align="center"
+            className={clsx(styles.dropZone, {
+                [styles.draggedOver]: isDraggedOver,
+            })}
+            direction="column"
+            gap="md"
+            justify="center"
+            ref={ref}
+            w="100%"
+        />
+    );
+};
