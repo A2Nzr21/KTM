@@ -58,12 +58,12 @@ const MotionImage = motion.img;
 const ImageWithPlaceholder = ({
     className,
     explicit,
-    placeholderIcon = 'itemAlbum',
+    placeholderIcon = 'ktmLogo',
     ...props
 }: HTMLMotionProps<'img'> & {
     explicit?: boolean;
     placeholder?: string;
-    placeholderIcon?: 'itemAlbum' | 'radio';
+    placeholderIcon?: 'itemAlbum' | 'ktmLogo' | 'radio';
 }) => {
     const nativeAspectRatio = useNativeAspectRatio();
     const useImageAspectRatio = useFullScreenPlayerStore((state) => state.useImageAspectRatio);

@@ -53,7 +53,7 @@ const ImageWithPlaceholder = ({
     ...props
 }: HTMLMotionProps<'img'> & {
     placeholder?: string;
-    placeholderIcon?: 'itemAlbum' | 'radio';
+    placeholderIcon?: 'itemAlbum' | 'ktmLogo' | 'radio';
     useImageAspectRatio?: boolean;
 }) => {
     if (!props.src) {
@@ -68,7 +68,7 @@ const ImageWithPlaceholder = ({
             >
                 <Icon
                     color="muted"
-                    icon={placeholderIcon === 'radio' ? 'radio' : 'itemAlbum'}
+                    icon={placeholderIcon === 'radio' ? 'radio' : 'ktmLogo'}
                     size="25%"
                 />
             </Center>

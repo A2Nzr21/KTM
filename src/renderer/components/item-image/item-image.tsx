@@ -29,9 +29,9 @@ const getUnloaderIcon = (itemType: LibraryItem) => {
         case LibraryItem.PLAYLIST:
             return 'emptyPlaylistImage';
         case LibraryItem.SONG:
-            return 'emptySongImage';
+            return 'ktmLogo';
         default:
-            return 'emptyImage';
+            return 'ktmLogo';
     }
 };
 

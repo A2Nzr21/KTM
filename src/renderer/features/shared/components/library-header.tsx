@@ -136,7 +136,7 @@ export const LibraryHeader = forwardRef(
                                 maxWidth: '100%',
                                 objectFit: 'contain',
                             }}
-                            unloaderIcon="emptyImage"
+                            unloaderIcon="ktmLogo"
                         />
                     </Center>
                 ),

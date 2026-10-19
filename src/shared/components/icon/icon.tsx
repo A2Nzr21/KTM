@@ -148,6 +148,7 @@ import { PiMouseLeftClickFill, PiMouseRightClickFill } from 'react-icons/pi';
 import { RiPlayListAddLine, RiRepeat2Line, RiRepeatOneLine } from 'react-icons/ri';
 
 import styles from './icon.module.css';
+import ktmLogoIcon from './ktm_logo_icon.png';
 import lastfmLogoIcon from './lastfm_logo_icon.png';
 import listenbrainzLogoIcon from './listenbrainz_logo_icon.svg';
 import musicbrainzLogoIcon from './musicbrainz_logo_icon.svg';
@@ -197,6 +198,19 @@ const MusicBrainzLogoIcon = forwardRef<HTMLImageElement, LogoImgProps>(
             className={className}
             ref={ref}
             src={musicbrainzLogoIcon}
+            style={logoImgStyle(size) ?? style}
+            {...props}
+        />
+    ),
+);
+
+const KtmLogoIcon = forwardRef<HTMLImageElement, LogoImgProps>(
+    ({ className, size, style, ...props }, ref) => (
+        <img
+            alt="KTM"
+            className={className}
+            ref={ref}
+            src={ktmLogoIcon}
             style={logoImgStyle(size) ?? style}
             {...props}
         />
@@ -302,6 +316,7 @@ export const AppIcon = {
     itemSong: LuMusic,
     json: LuBraces,
     keyboard: LuKeyboard,
+    ktmLogo: KtmLogoIcon,
     languages: LuLanguages,
     lastPlayed: LuHeadphones,
     layoutDetail: LuLayoutList,

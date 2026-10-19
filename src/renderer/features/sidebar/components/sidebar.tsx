@@ -270,7 +270,7 @@ const SidebarImage = () => {
                         }
                     />
                 ) : (
-                    <ImageUnloader icon="emptySongImage" />
+                    <ImageUnloader icon="ktmLogo" />
                 )}
             </Tooltip>
             <ActionIcon
