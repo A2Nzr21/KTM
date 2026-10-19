@@ -1320,7 +1320,7 @@ const initialState: SettingsState = {
         displayType: DiscordDisplayType.FEISHIN,
         enabled: false,
         linkType: DiscordLinkType.NONE,
-        showAsListening: false,
+        showAsListening: true,
         showPaused: false,
         showServerImage: false,
         showStateIcon: true,
@@ -2938,10 +2938,15 @@ export const useSettingsStore = createWithEqualityFn<SettingsSlice>()(
                     state.discord.showPaused = false;
                 }
 
+                // v36: default to "Listening to" presence (progress bar in Discord)
+                if (version < 36) {
+                    state.discord.showAsListening = true;
+                }
+
                 return persistedState;
             },
             name: 'store_settings',
-            version: 35,
+            version: 36,
         },
     ),
 );
