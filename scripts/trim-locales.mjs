@@ -1,0 +1,24 @@
+// Keeps only EN + FA Chromium locales in the packaged app.
+// App-side UI language is separate (src/i18n) and unaffected.
+import { readdirSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+
+const KEEP = new Set(['en-GB.pak', 'en-US.pak', 'fa.pak']);
+
+export default async function trimLocales(context) {
+    const localesDir = join(context.appOutDir, 'locales');
+    try {
+        const removed = [];
+        for (const file of readdirSync(localesDir)) {
+            if (file.endsWith('.pak') && !KEEP.has(file)) {
+                rmSync(join(localesDir, file));
+                removed.push(file);
+            }
+        }
+        console.log(
+            `trim-locales: removed ${removed.length} locale files (kept ${[...KEEP].join(', ')})`,
+        );
+    } catch (error) {
+        console.warn('trim-locales failed:', error.message);
+    }
+}

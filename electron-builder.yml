@@ -68,6 +68,7 @@ toolsets:
     appimage: '1.0.3'
 
 npmRebuild: false
+afterPack: scripts/trim-locales.mjs
 afterAllArtifactBuild: scripts/after-all-artifact-build.mjs
 publish:
     provider: github

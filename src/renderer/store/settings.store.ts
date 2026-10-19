@@ -1321,7 +1321,7 @@ const initialState: SettingsState = {
         enabled: false,
         linkType: DiscordLinkType.NONE,
         showAsListening: false,
-        showPaused: true,
+        showPaused: false,
         showServerImage: false,
         showStateIcon: true,
     },
@@ -2933,10 +2933,15 @@ export const useSettingsStore = createWithEqualityFn<SettingsSlice>()(
                     });
                 }
 
+                // v35: pause now clears the Discord presence by default
+                if (version < 35) {
+                    state.discord.showPaused = false;
+                }
+
                 return persistedState;
             },
             name: 'store_settings',
-            version: 34,
+            version: 35,
         },
     ),
 );
