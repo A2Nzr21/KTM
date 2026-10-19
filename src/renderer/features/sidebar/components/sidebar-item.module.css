@@ -36,7 +36,16 @@
     font-size: var(--theme-font-size-md);
     color: var(--theme-colors-foreground);
     border: 1px transparent solid;
-    transition: color 0.2s ease-in-out;
+    border-radius: var(--theme-radius-md);
+    transition:
+        color 0.2s ease-in-out,
+        background-color 0.15s ease,
+        transform 0.15s ease;
+
+    &:hover {
+        background: var(--theme-colors-row-hover);
+        transform: translateX(2px);
+    }
 
     &:focus-visible {
         border: 1px solid var(--theme-colors-primary-filled);
