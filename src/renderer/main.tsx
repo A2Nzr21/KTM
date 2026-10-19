@@ -23,13 +23,13 @@ function createIDBPersister(idbValidKey: IDBValidKey = 'reactQuery') {
     } as Persister;
 }
 
-const indexedDbPersister = createIDBPersister('feishin');
+const indexedDbPersister = createIDBPersister('ktm');
 
 createRoot(document.getElementById('root')!).render(
     <PersistQueryClientProvider
         client={queryClient}
         persistOptions={{
-            buster: 'feishin',
+            buster: 'ktm',
             dehydrateOptions: {
                 shouldDehydrateQuery: (query) => {
                     const isSuccess = query.state.status === 'success';

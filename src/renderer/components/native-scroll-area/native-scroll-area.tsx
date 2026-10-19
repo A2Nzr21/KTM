@@ -60,7 +60,7 @@ const BaseNativeScrollArea = forwardRef(
                     autoHide: 'leave',
                     autoHideDelay: scrollHideDelay || 500,
                     pointers: ['mouse', 'pen', 'touch'],
-                    theme: 'feishin-os-scrollbar',
+                    theme: 'ktm-os-scrollbar',
                     visibility: 'visible',
                 },
             },

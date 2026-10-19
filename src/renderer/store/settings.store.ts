@@ -2142,7 +2142,7 @@ const initialState: SettingsState = {
         enabled: false,
         password: randomString(8),
         port: 4333,
-        username: 'feishin',
+        username: 'ktm',
     },
     tab: 'general',
     tagEditor: {

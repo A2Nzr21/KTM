@@ -190,6 +190,10 @@ export const useDiscordRpc = () => {
 
             const artists = song?.artists.map((artist) => artist.name).join(', ');
 
+            // Show the audio format (FLAC, MP3, ...) after the song name
+            const format = (song.codec || song.container || '').toUpperCase();
+            const detailsText = song?.name ? `${song.name}${format ? ` [${format}]` : ''}` : 'Idle';
+
             const statusDisplayMap = {
                 [DiscordDisplayType.ARTIST_NAME]: DiscordStatusDisplayType.STATE,
                 [DiscordDisplayType.FEISHIN]: DiscordStatusDisplayType.NAME,
@@ -197,7 +201,7 @@ export const useDiscordRpc = () => {
             };
 
             const activity: SetActivity = {
-                details: truncate((song?.name && song.name.padEnd(2, ' ')) || 'Idle'),
+                details: truncate(detailsText),
                 instance: false,
                 largeImageKey: undefined,
                 largeImageText: truncate(

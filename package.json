@@ -1,5 +1,5 @@
 {
-    "name": "feishin",
+    "name": "ktm",
     "version": "1.17.0",
     "description": "A modern self-hosted music player.",
     "keywords": [
@@ -203,5 +203,5 @@
         "vite-plugin-pwa": "^1.3.0"
     },
     "packageManager": "pnpm@11.5.2",
-    "productName": "feishin"
+    "productName": "KTM"
 }

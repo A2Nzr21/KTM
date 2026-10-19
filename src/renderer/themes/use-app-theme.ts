@@ -147,7 +147,7 @@ export const useAppTheme = (overrideTheme?: AppTheme) => {
             textStyleRef.current.textContent = `
             @font-face {
                 font-family: "dynamic-font";
-                src: url("feishin:${custom}");
+                src: url("ktm:${custom}");
             }`;
         } else {
             const root = document.documentElement;

@@ -436,7 +436,7 @@ const BaseItemGridList = ({
                 autoHide: 'leave',
                 autoHideDelay: 500,
                 pointers: ['mouse', 'pen', 'touch'],
-                theme: 'feishin-os-scrollbar',
+                theme: 'ktm-os-scrollbar',
             },
         },
     });

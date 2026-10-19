@@ -39,7 +39,7 @@ import { useLocalStorage } from '/@/shared/hooks/use-local-storage';
 import { LibraryItem, Playlist } from '/@/shared/types/domain-types';
 import { DragData, DragOperation, DragTarget } from '/@/shared/types/drag-and-drop';
 
-const STORAGE_KEY_PREFIX = 'feishin:playlist-folder-state';
+const STORAGE_KEY_PREFIX = 'ktm:playlist-folder-state';
 
 const FOLDER_COLLAPSE_TRANSITION = { duration: 0.2, ease: 'easeInOut' } as const;
 

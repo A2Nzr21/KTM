@@ -3,13 +3,12 @@ import { ipcMain } from 'electron';
 
 import log from '/@/main/logger';
 
-const FEISHIN_DISCORD_APPLICATION_ID = '1165957668758900787';
-
+const KTM_DISCORD_APPLICATION_ID = '1165957668758900787';
 let client: Client | null = null;
 
 const createClient = async (clientId?: string) => {
     client = new Client({
-        clientId: clientId || FEISHIN_DISCORD_APPLICATION_ID,
+        clientId: clientId || KTM_DISCORD_APPLICATION_ID,
     });
 
     await client.login();

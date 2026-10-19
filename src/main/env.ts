@@ -1,5 +1,6 @@
 export const disableAutoUpdates = () => {
-    return process.env['DISABLE_AUTO_UPDATES'];
+    // KTM has no update server; never check for updates.
+    return true;
 };
 
 export const isMacOS = () => {

@@ -342,7 +342,7 @@ function createGithubUpdaterInstance(
 }
 
 protocol.registerSchemesAsPrivileged([
-    { privileges: { bypassCSP: true, corsEnabled: true }, scheme: 'feishin' },
+    { privileges: { bypassCSP: true, corsEnabled: true }, scheme: 'ktm' },
 ]);
 
 process.on('uncaughtException', (error: any) => {
@@ -599,7 +599,7 @@ const createTray = () => {
         });
     }
 
-    tray.setToolTip('Feishin');
+    tray.setToolTip('KTM');
     tray.setContextMenu(contextMenu);
 };
 
@@ -840,7 +840,7 @@ async function createWindow(first = true): Promise<void> {
     });
 
     if (isWindows()) {
-        app.setAppUserModelId('org.jeffvli.feishin');
+        app.setAppUserModelId('org.ktt.ktm');
     }
 
     menuBuilder = new MenuBuilder(mainWindow, showMainWindow);
@@ -882,7 +882,7 @@ async function createWindow(first = true): Promise<void> {
             });
     });
 
-    if (!disableAutoUpdates() && store.get('disable_auto_updates') !== true) {
+    if (!disableAutoUpdates()) {
         new AppUpdater();
     }
 
@@ -1137,7 +1137,7 @@ if (!singleInstance) {
                 version: packageJson.version,
             });
 
-            protocol.handle('feishin', async () => {
+            protocol.handle('ktm', async () => {
                 const filePath = store.get('local_font_path');
                 if (typeof filePath !== 'string') {
                     getMainWindow()?.webContents.send('custom-font-error', filePath);

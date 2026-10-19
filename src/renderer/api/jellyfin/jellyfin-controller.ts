@@ -1594,7 +1594,7 @@ export const JellyfinController: InternalControllerEndpoint = {
         // and a running job is also found by session id alone, so the id carries the item and
         // every parameter that must yield a different stream.
         const transcodeSession = (codec: string, rate: number | undefined) =>
-            `feishin-${id}-${codec}-${rate ?? 0}-${startTimeTicks}`;
+            `ktm-${id}-${codec}-${rate ?? 0}-${startTimeTicks}`;
         const deviceId = '';
 
         let url = `${server?.url}/Items/${id}/Download?apiKey=${server?.credential}&playSessionId=${deviceId}`;

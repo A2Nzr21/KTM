@@ -81,8 +81,8 @@ const COMP_PRESETS: Record<string, CompressorPreset> = {
 };
 
 // ─── Storage helpers ──────────────────────────────────────────────────────────
-const LS_EQ_PRESETS = 'feishin_eq_custom_presets';
-const LS_COMP_PRESETS = 'feishin_comp_custom_presets';
+const LS_EQ_PRESETS = 'ktm_eq_custom_presets';
+const LS_COMP_PRESETS = 'ktm_comp_custom_presets';
 
 function loadCustomPresets<T>(key: string): Record<string, T> {
     try {
