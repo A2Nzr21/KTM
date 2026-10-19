@@ -38,7 +38,7 @@ interface WindowBarControlsProps {
         handleMaximize: () => void;
         handleMinimize: () => void;
     };
-    title: string;
+    title?: string;
 }
 
 const WindowsControls = ({ controls }: WindowBarControlsProps) => {

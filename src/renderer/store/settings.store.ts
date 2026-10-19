@@ -1316,7 +1316,7 @@ const initialState: SettingsState = {
         enabled: false,
     },
     discord: {
-        clientId: '1165957668758900787',
+        clientId: '',
         displayType: DiscordDisplayType.FEISHIN,
         enabled: false,
         linkType: DiscordLinkType.NONE,

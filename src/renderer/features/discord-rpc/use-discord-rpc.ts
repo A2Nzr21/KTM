@@ -320,7 +320,6 @@ export const useDiscordRpc = () => {
             if (!activity.largeImageKey) {
                 activity.largeImageKey = 'icon';
             }
-
             // Initialize if needed
             const isConnected = await discordRpc?.isConnected();
             if (!isConnected) {

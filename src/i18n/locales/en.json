@@ -919,7 +919,7 @@
         "releaseChannel": "Release channel",
         "releaseChannel_description": "Choose between stable, beta, or alpha (nightly) releases for automatic updates",
         "disableLibraryUpdateOnStartup": "Disable checking for new versions on startup",
-        "discordApplicationId_description": "The application ID for {{discord}} rich presence (defaults to {{defaultId}})",
+        "discordApplicationId_description": "The application ID from your Discord application (discord.com/developers - create one, upload your logo as asset named icon, paste the ID here)",
         "discordApplicationId": "{{discord}} application ID",
         "discordDisplayType_artistname": "Artist name(s)",
         "discordDisplayType_description": "Changes what you are listening to in your status",

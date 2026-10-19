@@ -3,12 +3,22 @@ import { ipcMain } from 'electron';
 
 import log from '/@/main/logger';
 
-const KTM_DISCORD_APPLICATION_ID = '1165957668758900787';
+const KTM_DISCORD_APPLICATION_ID = '';
 let client: Client | null = null;
 
 const createClient = async (clientId?: string) => {
+    const effectiveId = clientId || KTM_DISCORD_APPLICATION_ID;
+
+    if (!effectiveId) {
+        log.warn(
+            'Discord RPC: no application ID configured - set one in Settings > Window > Discord',
+        );
+        client = null;
+        return null;
+    }
+
     client = new Client({
-        clientId: clientId || KTM_DISCORD_APPLICATION_ID,
+        clientId: effectiveId,
     });
 
     await client.login();
