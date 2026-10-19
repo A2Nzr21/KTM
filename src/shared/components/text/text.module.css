@@ -10,10 +10,11 @@
 
 .root.link {
     cursor: pointer;
+    transition: color 0.15s ease;
 }
 
 .root.link:hover {
-    color: var(--theme-colors-foreground);
+    color: var(--theme-colors-primary);
     text-decoration: underline;
 }
 

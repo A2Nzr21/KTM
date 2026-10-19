@@ -132,6 +132,17 @@ svg {
     transition: filter 0.3s ease;
 }
 
+/* Respect OS reduced-motion: kill infinite/looping animations and big moves */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
+
 @font-face {
     font-family: Symbola;
     src: url('../../../assets/fonts/Symbola.woff2');
