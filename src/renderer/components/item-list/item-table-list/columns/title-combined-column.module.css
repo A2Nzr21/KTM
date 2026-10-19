@@ -121,6 +121,29 @@ a.title {
     height: 24px;
 }
 
+/* Now-playing title: same shimmer as title-column */
 .active {
-    color: var(--theme-colors-primary);
+    color: transparent;
+    background: linear-gradient(
+        100deg,
+        var(--theme-colors-primary) 0%,
+        var(--theme-colors-primary) 35%,
+        lighten(var(--theme-colors-primary), 18%) 50%,
+        var(--theme-colors-primary) 65%,
+        var(--theme-colors-primary) 100%
+    );
+    background-clip: text;
+    background-size: 250% 100%;
+    animation: title-shimmer 4s ease-in-out infinite;
+}
+
+@keyframes title-shimmer {
+    0%,
+    100% {
+        background-position: 0% 0;
+    }
+
+    50% {
+        background-position: 100% 0;
+    }
 }

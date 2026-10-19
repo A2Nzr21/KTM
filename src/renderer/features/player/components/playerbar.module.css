@@ -2,6 +2,20 @@
     width: 100vw;
     height: 100%;
     border-top: 1px solid alpha(var(--theme-colors-border), 0.5);
+    animation: playerbar-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    animation-delay: 0.15s;
+}
+
+@keyframes playerbar-enter {
+    from {
+        opacity: 0;
+        transform: translateY(100%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .controls-grid {

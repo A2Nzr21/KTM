@@ -52,6 +52,22 @@
     }
 }
 
+/* While playing: soft primary halo breathing around the main play button */
+body.app-playing .main {
+    animation: main-play-halo 2.6s ease-in-out infinite;
+}
+
+@keyframes main-play-halo {
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 alpha(var(--theme-colors-primary-filled), 40%);
+    }
+
+    50% {
+        box-shadow: 0 0 14px 2px alpha(var(--theme-colors-primary-filled), 30%);
+    }
+}
+
 .secondary {
     color: var(--theme-colors-foreground);
 
