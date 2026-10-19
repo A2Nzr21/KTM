@@ -16,3 +16,26 @@
         font-size: 3.5vh;
     }
 }
+
+/* Track change: title/artist/album/badges slide up + fade in, staggered.
+   Re-triggers because the component remounts per song (key on song id in tsx). */
+.metadata-container > * {
+    animation: metadata-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.metadata-container > *:nth-child(1) { animation-delay: 0s; }
+.metadata-container > *:nth-child(2) { animation-delay: 0.05s; }
+.metadata-container > *:nth-child(3) { animation-delay: 0.1s; }
+.metadata-container > *:nth-child(4) { animation-delay: 0.15s; }
+
+@keyframes metadata-enter {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

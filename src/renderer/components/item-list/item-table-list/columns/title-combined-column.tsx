@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 
 import styles from './title-combined-column.module.css';
 
+import { EqualizerBars } from '/@/renderer/components/equalizer-bars/equalizer-bars';
 import { ItemImage } from '/@/renderer/components/item-image/item-image';
 import { getTitlePath } from '/@/renderer/components/item-list/helpers/get-title-path';
 import {
@@ -200,6 +201,7 @@ export const QueueSongTitleCombinedColumn = (props: ItemTableListInnerColumn) =>
     const playButtonBehavior = usePlayButtonBehavior();
     const [isHovered, setIsHovered] = useState(false);
     const isActive = useIsActiveRow(song?.id, song?._uniqueId);
+    const showBars = isActive && props.itemType === LibraryItem.QUEUE_SONG;
 
     const handlePlay = (playType: Play, event: React.MouseEvent<HTMLButtonElement>) => {
         if (!item) {
@@ -332,6 +334,7 @@ export const QueueSongTitleCombinedColumn = (props: ItemTableListInnerColumn) =>
                         truncate
                         {...titleLinkProps}
                     >
+                        {showBars && <EqualizerBars />}
                         <ExplicitIndicator explicitStatus={song?.explicitStatus} />
                         {row.name as string}
                         {song?.trackSubtitle && props.itemType !== LibraryItem.QUEUE_SONG && (

@@ -1,6 +1,14 @@
 .bar {
     background-color: var(--theme-colors-foreground);
-    transition: background-color 0.2s ease-in-out;
+    transition:
+        background-color 0.2s ease-in-out,
+        width 0.15s ease-out;
+}
+
+body[data-slider-dragging] .bar {
+    transition:
+        background-color 0.2s ease-in-out,
+        width 0s;
 }
 
 .label {

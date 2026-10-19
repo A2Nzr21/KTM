@@ -15,6 +15,28 @@
     overflow: hidden;
 }
 
+/* Track change in the playerbar: whole block slides in from below, quick + subtle */
+.track-swap {
+    display: flex;
+    flex-direction: column;
+    gap: var(--theme-spacing-xs);
+    width: 100%;
+    min-width: 0;
+    animation: track-swap 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+@keyframes track-swap {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 @keyframes fadein {
     from {
         opacity: 0;
@@ -38,6 +60,28 @@
 
     &:hover button {
         display: block;
+    }
+}
+
+/* Soft breathing glow on the cover while music plays */
+body.app-playing .image::after {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    content: '';
+    border-radius: var(--theme-radius-md);
+    box-shadow: 0 0 0 0 alpha(var(--theme-colors-primary), 45%);
+    animation: cover-glow 2.4s ease-in-out infinite;
+}
+
+@keyframes cover-glow {
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 alpha(var(--theme-colors-primary), 35%);
+    }
+
+    50% {
+        box-shadow: 0 0 12px 1px alpha(var(--theme-colors-primary), 20%);
     }
 }
 

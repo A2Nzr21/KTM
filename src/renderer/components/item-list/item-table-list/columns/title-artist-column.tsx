@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 
 import styles from './title-artist-column.module.css';
 
+import { EqualizerBars } from '/@/renderer/components/equalizer-bars/equalizer-bars';
 import { getTitlePath } from '/@/renderer/components/item-list/helpers/get-title-path';
 import {
     ColumnNullFallback,
@@ -99,6 +100,9 @@ export const QueueSongTitleArtistColumn = (props: ItemTableListInnerColumn) => {
     const alignClass =
         align === 'center' ? 'align-center' : align === 'end' ? 'align-right' : 'align-left';
 
+    // Same as title-column: bars only on the active queue row
+    const showBars = isActive && props.itemType === LibraryItem.QUEUE_SONG;
+
     if (row && 'name' in row && 'artists' in row) {
         const rowHeight = props.getRowHeight(props.rowIndex, props);
         const path = getTitlePath(props.itemType, (rowItem as any).id as string);
@@ -137,6 +141,7 @@ export const QueueSongTitleArtistColumn = (props: ItemTableListInnerColumn) => {
                         size="md"
                         {...titleLinkProps}
                     >
+                        {showBars && <EqualizerBars />}
                         <ExplicitIndicator explicitStatus={song?.explicitStatus} />
                         {row.name as string}
                         {song?.trackSubtitle && props.itemType !== LibraryItem.QUEUE_SONG && (

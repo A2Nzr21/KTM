@@ -208,7 +208,7 @@ export const LeftControls = () => {
                             onToggleContextMenu={handleToggleContextMenu}
                         />
                     ) : (
-                        <>
+                        <div className={styles.trackSwap} key={currentSong?._uniqueId}>
                             <div className={styles.lineItem} onClick={stopPropagation}>
                                 <Group align="center" gap="xs" wrap="nowrap">
                                     <Text
@@ -218,6 +218,11 @@ export const LeftControls = () => {
                                         isLink
                                         onContextMenu={handleToggleContextMenu}
                                         overflow="hidden"
+                                        title={
+                                            currentSong?.trackSubtitle
+                                                ? `${title} (${currentSong.trackSubtitle})`
+                                                : title
+                                        }
                                         to={AppRoute.NOW_PLAYING}
                                     >
                                         {title || '—'}
@@ -303,7 +308,7 @@ export const LeftControls = () => {
                                     {currentSong?.album || '—'}
                                 </Text>
                             </div>
-                        </>
+                        </div>
                     )}
                 </motion.div>
             </LayoutGroup>

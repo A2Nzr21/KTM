@@ -65,6 +65,14 @@ export const PlayerbarSeekSlider = ({ max, min }: PlayerbarSeekSliderProps) => {
             onClick={(e) => {
                 e?.stopPropagation();
             }}
+            onPointerDown={() => {
+                // Kill the bar width transition while dragging so the fill
+                // tracks the pointer 1:1 instead of lagging behind it
+                document.body.setAttribute('data-slider-dragging', '');
+            }}
+            onPointerUp={() => {
+                document.body.removeAttribute('data-slider-dragging');
+            }}
             size={6}
             value={isSeeking ? seekValue : currentTime}
             w="100%"

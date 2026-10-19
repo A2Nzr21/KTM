@@ -30,6 +30,7 @@ import { ExplicitStatus, LibraryItem } from '/@/shared/types/domain-types';
 const imageVariants: Variants = {
     closed: {
         opacity: 0,
+        scale: 0.96,
         transition: {
             duration: 0.8,
             ease: 'linear',
@@ -37,11 +38,13 @@ const imageVariants: Variants = {
     },
     initial: {
         opacity: 0,
+        scale: 0.96,
     },
     open: (custom) => {
         const { isOpen } = custom;
         return {
             opacity: isOpen ? 1 : 0,
+            scale: isOpen ? 1 : 0.96,
             transition: {
                 duration: 0.4,
                 ease: 'linear',

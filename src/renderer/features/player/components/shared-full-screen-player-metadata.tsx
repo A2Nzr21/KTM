@@ -115,6 +115,7 @@ export const SharedFullscreenPlayerMetadata = ({
                 <Stack
                     className={styles.metadataContainer}
                     gap="md"
+                    key={isRadioActive ? 'radio' : currentSong?._uniqueId}
                     maw={metadataMaxWidth}
                     style={{
                         alignItems: metadataAlignment,

@@ -50,6 +50,11 @@
     height: 100%;
     object-fit: var(--theme-image-fit);
     border-radius: var(--theme-radius-md);
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.image-container:hover .sidebar-image {
+    transform: scale(1.015);
 }
 
 .censored.sidebar-image {

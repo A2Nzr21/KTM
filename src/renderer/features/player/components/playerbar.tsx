@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { lazy, MouseEvent, Suspense, useRef } from 'react';
+import { lazy, MouseEvent, Suspense, useEffect, useRef } from 'react';
 
 import styles from './playerbar.module.css';
 
@@ -16,15 +16,22 @@ const MobilePlayerbar = lazy(() =>
 );
 import { useFullScreenPlayerStore, useSetFullScreenPlayerStore } from '/@/renderer/store';
 import { usePlayerbarOpenDrawer } from '/@/renderer/store';
+import { usePlayerStatus } from '/@/renderer/store';
 import { PlaybackSelectors } from '/@/shared/constants/playback-selectors';
+import { PlayerStatus } from '/@/shared/types/types';
 
 export const Playerbar = () => {
     const playerbarOpenDrawer = usePlayerbarOpenDrawer();
     const { expanded: isFullScreenPlayerExpanded } = useFullScreenPlayerStore();
     const setFullScreenPlayerStore = useSetFullScreenPlayerStore();
     const isMobile = useIsMobile();
+    const status = usePlayerStatus();
 
     const mouseDownTarget = useRef<EventTarget | null>(null);
+
+    useEffect(() => {
+        document.body.classList.toggle('app-playing', status === PlayerStatus.PLAYING);
+    }, [status]);
 
     const handleToggleFullScreenPlayer = (e?: KeyboardEvent | MouseEvent<HTMLDivElement>) => {
         e?.stopPropagation();

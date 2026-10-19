@@ -12,4 +12,5 @@
 
 .synchronized-lyrics .lyric-line:hover {
     opacity: 1 !important;
+    transform: scale(1);
 }

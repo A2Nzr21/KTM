@@ -9,6 +9,11 @@
     user-select: none;
     background-color: var(--theme-colors-surface);
     border-radius: var(--theme-radius-md);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+
+    &:hover {
+        transform: translateY(-3px);
+    }
 }
 
 .container.selected {

@@ -681,6 +681,12 @@ const VolumeButton = () => {
                     onClick={(e) => {
                         e.stopPropagation();
                     }}
+                    onPointerDown={() => {
+                        document.body.setAttribute('data-slider-dragging', '');
+                    }}
+                    onPointerUp={() => {
+                        document.body.removeAttribute('data-slider-dragging');
+                    }}
                     onWheel={handleVolumeWheel}
                     size={6}
                     value={sliderValue}

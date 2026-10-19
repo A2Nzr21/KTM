@@ -26,6 +26,7 @@
 
 .synchronized-karaoke-lyrics :is(.karaoke-line, .lyric-line):hover {
     opacity: 1 !important;
+    transform: scale(1);
 }
 
 /* Word highlight via stacked text twin + gradient swipe */

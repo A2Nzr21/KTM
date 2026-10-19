@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 
 import styles from './title-column.module.css';
 
+import { EqualizerBars } from '/@/renderer/components/equalizer-bars/equalizer-bars';
 import { getTitlePath } from '/@/renderer/components/item-list/helpers/get-title-path';
 import {
     ColumnNullFallback,
@@ -85,6 +86,10 @@ function QueueSongTitleColumn(props: ItemTableListInnerColumn) {
     const song = rowItem as QueueSong;
     const isActive = useIsActiveRow(song?.id, song?._uniqueId);
 
+    // Equalizer bars live on the active queue row; they pause with playback
+    // via the body.app-playing class driven by the playerbar.
+    const showBars = isActive && props.itemType === LibraryItem.QUEUE_SONG;
+
     const path = useMemo(() => {
         if (typeof row !== 'string' || !rowItem || !(rowItem as any).id) return undefined;
         return getTitlePath(props.itemType, (rowItem as any).id as string);
@@ -114,6 +119,7 @@ function QueueSongTitleColumn(props: ItemTableListInnerColumn) {
                     isNoSelect
                     {...titleLinkProps}
                 >
+                    {showBars && <EqualizerBars />}
                     <ExplicitIndicator explicitStatus={song?.explicitStatus} />
                     {row}
                     {song?.trackSubtitle && props.itemType !== LibraryItem.QUEUE_SONG && (

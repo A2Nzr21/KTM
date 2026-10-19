@@ -39,6 +39,11 @@
 .main {
     background: var(--theme-colors-foreground) !important;
     border-radius: 50%;
+    transition: transform 0.12s ease;
+
+    &:active {
+        transform: scale(0.88);
+    }
 
     svg {
         display: flex;
