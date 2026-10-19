@@ -132,16 +132,10 @@ svg {
     transition: filter 0.3s ease;
 }
 
-/* Respect OS reduced-motion: kill infinite/looping animations and big moves */
-@media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        transition-duration: 0.01ms !important;
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-    }
-}
+/* NOTE: no prefers-reduced-motion guard. Windows gaming PCs commonly disable
+   "client area animations" (SPI_GETCLIENTAREAANIMATION), which Electron maps to
+   prefers-reduced-motion: reduce - and that would kill every animation in the
+   app for users who explicitly asked for them. KTM always animates. */
 
 @font-face {
     font-family: Symbola;
