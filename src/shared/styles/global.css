@@ -16,6 +16,12 @@
 
 body {
     margin: 0;
+
+    /* Smooth theme switches: colors glide instead of snapping. Short duration
+       so it never lags behind rapid theme changes or drags. */
+    transition:
+        background-color 0.3s ease,
+        color 0.3s ease;
 }
 
 body,
@@ -117,6 +123,13 @@ button {
     to {
         opacity: 0;
     }
+}
+
+/* Smooth theme switches: colors glide instead of snapping. Short duration so
+   it never lags behind rapid theme changes or drags. */
+img,
+svg {
+    transition: filter 0.3s ease;
 }
 
 @font-face {

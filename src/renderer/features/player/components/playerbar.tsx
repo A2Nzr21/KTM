@@ -14,6 +14,7 @@ const MobilePlayerbar = lazy(() =>
         default: module.MobilePlayerbar,
     })),
 );
+import { useIsPlayingRadio } from '/@/renderer/features/radio/hooks/use-radio-player';
 import { useFullScreenPlayerStore, useSetFullScreenPlayerStore } from '/@/renderer/store';
 import { usePlayerbarOpenDrawer } from '/@/renderer/store';
 import { usePlayerStatus } from '/@/renderer/store';
@@ -26,12 +27,16 @@ export const Playerbar = () => {
     const setFullScreenPlayerStore = useSetFullScreenPlayerStore();
     const isMobile = useIsMobile();
     const status = usePlayerStatus();
+    const isPlayingRadio = useIsPlayingRadio();
 
     const mouseDownTarget = useRef<EventTarget | null>(null);
 
     useEffect(() => {
-        document.body.classList.toggle('app-playing', status === PlayerStatus.PLAYING);
-    }, [status]);
+        document.body.classList.toggle(
+            'app-playing',
+            status === PlayerStatus.PLAYING || isPlayingRadio,
+        );
+    }, [status, isPlayingRadio]);
 
     const handleToggleFullScreenPlayer = (e?: KeyboardEvent | MouseEvent<HTMLDivElement>) => {
         e?.stopPropagation();
