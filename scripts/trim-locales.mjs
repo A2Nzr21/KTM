@@ -5,6 +5,7 @@ import { join } from 'node:path';
 
 const KEEP = new Set(['en-GB.pak', 'en-US.pak', 'fa.pak']);
 
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export default async function trimLocales(context) {
     const localesDir = join(context.appOutDir, 'locales');
     try {
