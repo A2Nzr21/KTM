@@ -52,13 +52,17 @@
     flex: 1;
     gap: 0.5rem;
     align-items: center;
+    justify-content: flex-start;
     min-width: 0;
-    padding-left: 1rem;
+    padding-left: 0.75rem;
     overflow: hidden;
 }
 
 .player-status-container > img {
     flex-shrink: 0;
+    width: auto;
+    height: 22px;
+    object-fit: contain;
 }
 
 .player-status-text {

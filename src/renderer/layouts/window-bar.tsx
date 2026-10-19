@@ -41,16 +41,13 @@ interface WindowBarControlsProps {
     title: string;
 }
 
-const WindowsControls = ({ controls, title }: WindowBarControlsProps) => {
+const WindowsControls = ({ controls }: WindowBarControlsProps) => {
     const { handleClose, handleMaximize, handleMinimize } = controls;
 
     return (
         <div className={styles.windowsContainer}>
             <div className={styles.playerStatusContainer}>
-                <img alt="" height={16} src={appIcon} style={{ flexShrink: 0 }} width={16} />
-                <Text className={styles.playerStatusText} overflow="hidden" size="sm">
-                    {title}
-                </Text>
+                <img alt="KTM" height={22} src={appIcon} style={{ flexShrink: 0 }} width={32} />
             </div>
             <div className={styles.windowsButtonGroup}>
                 <div className={styles.windowsButton} onClick={handleMinimize} role="button">
@@ -220,10 +217,7 @@ export const WindowBar = () => {
     return (
         <div className={styles.windowBar}>
             {windowBarStyle === Platform.WINDOWS && (
-                <WindowsControls
-                    controls={{ handleClose, handleMaximize, handleMinimize }}
-                    title={title}
-                />
+                <WindowsControls controls={{ handleClose, handleMaximize, handleMinimize }} />
             )}
             {windowBarStyle === Platform.MACOS && (
                 <MacOsControls
