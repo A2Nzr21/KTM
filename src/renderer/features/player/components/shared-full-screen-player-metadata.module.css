@@ -39,3 +39,8 @@
         transform: translateY(0);
     }
 }
+
+/* Minimal animation level: metadata appears instantly */
+:global(body[data-anim-level='minimal']) .metadata-container > * {
+    animation: none !important;
+}

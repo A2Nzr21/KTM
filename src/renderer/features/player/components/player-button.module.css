@@ -68,6 +68,11 @@ body.app-playing .main {
     }
 }
 
+/* Minimal animation level: no halo */
+:global(body[data-anim-level='minimal']) .main {
+    animation: none !important;
+}
+
 .secondary {
     color: var(--theme-colors-foreground);
 

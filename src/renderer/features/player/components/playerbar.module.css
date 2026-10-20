@@ -18,6 +18,11 @@
     }
 }
 
+/* Minimal animation level: no entrance slide */
+:global(body[data-anim-level='minimal']) .container {
+    animation: none !important;
+}
+
 .controls-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);

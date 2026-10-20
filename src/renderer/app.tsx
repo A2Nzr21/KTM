@@ -18,6 +18,7 @@ import { useNativeMenuSync } from '/@/renderer/hooks/use-native-menu-sync';
 import { useSyncSettingsToMain } from '/@/renderer/hooks/use-sync-settings-to-main';
 import { AppRouter } from '/@/renderer/router/app-router';
 import {
+    useAnimationLevel,
     useCssSettings,
     useHotkeySettings,
     useLanguage,
@@ -123,6 +124,7 @@ const AppEffects = () => (
         <FullscreenToggleEffect />
         <FullscreenAutoOpenEffect />
         <InputFocusEffect />
+        <AnimationLevelEffect />
     </>
 );
 
@@ -313,6 +315,16 @@ const InputFocusEffect = () => {
             document.removeEventListener('focusout', handleFocusOut);
         };
     }, []);
+
+    return null;
+};
+
+const AnimationLevelEffect = () => {
+    const enableAnimations = useAnimationLevel();
+
+    useEffect(() => {
+        document.body.dataset.animLevel = enableAnimations;
+    }, [enableAnimations]);
 
     return null;
 };

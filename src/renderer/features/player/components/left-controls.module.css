@@ -85,6 +85,15 @@ body.app-playing .image::after {
     }
 }
 
+/* Minimal animation level: no glow, no track-swap slide */
+:global(body[data-anim-level='minimal']) .image::after {
+    animation: none !important;
+}
+
+:global(body[data-anim-level='minimal']) .track-swap {
+    animation: none !important;
+}
+
 .toggle-button {
     position: absolute;
     top: 2px;

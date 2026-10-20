@@ -6,8 +6,10 @@ import {
     SettingsSection,
 } from '/@/renderer/features/settings/components/settings-section';
 import {
+    AnimationLevel,
     BarAlign,
     PlayerbarSliderType,
+    useAnimationLevel,
     useGeneralSettings,
     usePlayerbarSlider,
     useSettingsStoreActions,
@@ -26,6 +28,7 @@ export const ControlSettings = memo(() => {
     const { t } = useTranslation();
     const settings = useGeneralSettings();
     const playerbarSlider = usePlayerbarSlider();
+    const animationLevel = useAnimationLevel();
     const { setSettings } = useSettingsStoreActions();
 
     const controlOptions: SettingOption[] = [
@@ -351,6 +354,40 @@ export const ControlSettings = memo(() => {
             }),
             isHidden: false,
             title: t('setting.playerbarSlider'),
+        },
+        {
+            control: (
+                <SegmentedControl
+                    data={[
+                        {
+                            label: t('setting.animations', { context: 'optionAll' }),
+                            value: AnimationLevel.ALL,
+                        },
+                        {
+                            label: t('setting.animations', {
+                                context: 'optionMinimal',
+                            }),
+                            value: AnimationLevel.MINIMAL,
+                        },
+                    ]}
+                    onChange={(value) => {
+                        setSettings({
+                            general: {
+                                ...settings,
+                                enableAnimations: value as AnimationLevel,
+                            },
+                        });
+                    }}
+                    size="sm"
+                    value={animationLevel}
+                    w="100%"
+                />
+            ),
+            description: t('setting.animations', {
+                context: 'description',
+            }),
+            isHidden: false,
+            title: t('setting.animations'),
         },
         ...(playerbarSlider?.type === PlayerbarSliderType.WAVEFORM
             ? [

@@ -49,3 +49,9 @@ body:not(.app-playing) .bar {
     transition: transform 0.3s ease;
     animation-play-state: paused;
 }
+
+/* Minimal animation level: static bars at mid-height */
+:global(body[data-anim-level='minimal']) .bar {
+    transform: scaleY(0.55);
+    animation: none !important;
+}

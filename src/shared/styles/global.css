@@ -137,6 +137,11 @@ svg {
    prefers-reduced-motion: reduce - and that would kill every animation in the
    app for users who explicitly asked for them. KTM always animates. */
 
+/* Animation level control lives in Settings > General and drives
+   body[data-anim-level]. Each module CSS gates its own decorative animations
+   under body[data-anim-level='minimal'] so rules sit next to what they
+   animate. Functional transitions (hover colors, quick fades) stay in both. */
+
 @font-face {
     font-family: Symbola;
     src: url('../../../assets/fonts/Symbola.woff2');

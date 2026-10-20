@@ -348,6 +348,8 @@ const PlayerbarSliderTypeSchema = z.enum(['slider', 'waveform']);
 
 const BarAlignSchema = z.enum(['top', 'bottom', 'center']);
 
+const AnimationLevelSchema = z.enum(['all', 'minimal']);
+
 const PlayerbarSliderSchema = z.object({
     barAlign: BarAlignSchema,
     barGap: z.number(),
@@ -529,6 +531,7 @@ export const GeneralSettingsSchema = z.object({
     combinedLyricsAndVisualizer: z.boolean(),
     confirmQueueChanges: z.boolean(),
     disabledContextMenu: z.record(z.string(), z.boolean()),
+    enableAnimations: AnimationLevelSchema,
     enableGridMultiSelect: z.boolean(),
     externalLinks: z.boolean(),
     followCurrentSong: z.boolean(),
@@ -875,6 +878,11 @@ export enum AlbumGroupItem {
     RELEASE_YEAR = 'releaseYear',
     SIZE = 'size',
     SONG_COUNT = 'songCount',
+}
+
+export enum AnimationLevel {
+    ALL = 'all',
+    MINIMAL = 'minimal',
 }
 
 export enum ArtistItem {
@@ -1354,6 +1362,7 @@ const initialState: SettingsState = {
         combinedLyricsAndVisualizer: false,
         confirmQueueChanges: true,
         disabledContextMenu: {},
+        enableAnimations: 'all' as AnimationLevel,
         enableGridMultiSelect: false,
         externalLinks: true,
         followCurrentSong: true,
@@ -2943,10 +2952,15 @@ export const useSettingsStore = createWithEqualityFn<SettingsSlice>()(
                     state.discord.showAsListening = true;
                 }
 
+                // v37: animations level control (all/minimal)
+                if (version < 37) {
+                    state.general.enableAnimations = 'all' as AnimationLevel;
+                }
+
                 return persistedState;
             },
             name: 'store_settings',
-            version: 36,
+            version: 37,
         },
     ),
 );
@@ -3053,6 +3067,9 @@ export const useImagePlaceholderPriority = () =>
     useSettingsStore((state) => state.general.imagePlaceholderPriority);
 
 export const useButtonSize = () => useSettingsStore((state) => state.general.buttonSize, shallow);
+
+export const useAnimationLevel = () =>
+    useSettingsStore((state) => state.general.enableAnimations, shallow);
 
 export const useSkipButtons = () => useSettingsStore((state) => state.general.skipButtons, shallow);
 

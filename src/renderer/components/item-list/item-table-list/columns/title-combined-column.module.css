@@ -147,3 +147,10 @@ a.title {
         background-position: 100% 0;
     }
 }
+
+/* Minimal animation level: static primary color, no sweep */
+:global(body[data-anim-level='minimal']) .active {
+    color: var(--theme-colors-primary);
+    background: none;
+    animation: none !important;
+}
