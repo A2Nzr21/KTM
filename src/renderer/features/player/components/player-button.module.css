@@ -37,6 +37,7 @@
 }
 
 .main {
+    position: relative;
     background: var(--theme-colors-foreground) !important;
     border-radius: 50%;
     transition: transform 0.12s ease;
@@ -52,24 +53,37 @@
     }
 }
 
-/* While playing: soft primary halo breathing around the main play button */
-body.app-playing .main {
+/* While playing: soft primary halo breathing around the main play button.
+   Static box-shadow on a pseudo-element, only opacity animates (compositor-only,
+   no per-frame shadow repaint). */
+.main::after {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    content: '';
+    border-radius: 50%;
+    box-shadow: 0 0 14px 2px alpha(var(--theme-colors-primary-filled), 30%);
+    opacity: 0;
+}
+
+body.app-playing .main::after {
     animation: main-play-halo 2.6s ease-in-out infinite;
 }
 
 @keyframes main-play-halo {
     0%,
     100% {
-        box-shadow: 0 0 0 0 alpha(var(--theme-colors-primary-filled), 40%);
+        opacity: 0.6;
     }
 
     50% {
-        box-shadow: 0 0 14px 2px alpha(var(--theme-colors-primary-filled), 30%);
+        opacity: 1;
     }
 }
 
 /* Minimal animation level: no halo */
-:global(body[data-anim-level='minimal']) .main {
+:global(body[data-anim-level='minimal']) .main::after {
+    opacity: 0 !important;
     animation: none !important;
 }
 

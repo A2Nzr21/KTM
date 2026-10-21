@@ -74,6 +74,7 @@ import {
     ItemTableListColumnConfig,
 } from '/@/renderer/components/item-list/types';
 import { PlayerContext, usePlayer } from '/@/renderer/features/player/context/player-context';
+import { useAnimationsEnabled } from '/@/renderer/hooks';
 import {
     useAlbumGroupImageSize,
     useAlbumGroupItems,
@@ -1280,6 +1281,7 @@ const BaseItemTableList = ({
     startRowIndex,
 }: ItemTableListProps) => {
     const { playlistId: routePlaylistId } = useParams() as { playlistId?: string };
+    const animationsEnabled = useAnimationsEnabled();
     const tableId = useId();
     const albumGroupImageSize = useAlbumGroupImageSize();
     const albumGroupItems = useAlbumGroupItems();
@@ -1893,7 +1895,11 @@ const BaseItemTableList = ({
             ref={mergedContainerRef}
             tabIndex={0}
             {...animationProps.fadeIn}
-            transition={{ duration: enableEntranceAnimation ? 0.3 : 0, ease: 'anticipate' }}
+            transition={
+                enableEntranceAnimation && animationsEnabled
+                    ? { duration: 0.25, ease: 'easeOut' }
+                    : { duration: 0 }
+            }
         >
             <ItemTableListStickyUI
                 calculatedColumnWidths={displayColumnWidths}

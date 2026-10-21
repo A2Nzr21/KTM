@@ -40,6 +40,7 @@ import {
 } from '/@/renderer/components/item-list/helpers/item-list-state';
 import { useListHotkeys } from '/@/renderer/components/item-list/helpers/use-list-hotkeys';
 import { ItemControls, ItemListHandle } from '/@/renderer/components/item-list/types';
+import { useAnimationsEnabled } from '/@/renderer/hooks';
 import { animationProps } from '/@/shared/components/animations/animation-props';
 import { useElementSize } from '/@/shared/hooks/use-element-size';
 import { useFocusWithin } from '/@/shared/hooks/use-focus-within';
@@ -387,6 +388,7 @@ const BaseItemGridList = ({
     rows,
     size = 'default',
 }: ItemGridListProps) => {
+    const animationsEnabled = useAnimationsEnabled();
     const rootRef = useRef<HTMLDivElement | null>(null);
     const outerRef = useRef<HTMLDivElement | null>(null);
     const listRef = useRef<FixedSizeList<GridItemProps>>(null);
@@ -808,7 +810,11 @@ const BaseItemGridList = ({
             ref={mergedContainerRef}
             tabIndex={0}
             {...animationProps.fadeIn}
-            transition={{ duration: enableEntranceAnimation ? 0.5 : 0, ease: 'anticipate' }}
+            transition={
+                enableEntranceAnimation && animationsEnabled
+                    ? { duration: 0.25, ease: 'easeOut' }
+                    : { duration: 0 }
+            }
         >
             <AutoSizer>
                 {({ height, width }) => (

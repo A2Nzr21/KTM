@@ -32,8 +32,8 @@ const imageVariants: Variants = {
         opacity: 0,
         scale: 0.96,
         transition: {
-            duration: 0.8,
-            ease: 'linear',
+            duration: 0.3,
+            ease: 'easeIn',
         },
     },
     initial: {
@@ -47,7 +47,7 @@ const imageVariants: Variants = {
             scale: isOpen ? 1 : 0.96,
             transition: {
                 duration: 0.4,
-                ease: 'linear',
+                ease: 'easeOut',
             },
         };
     },
@@ -73,7 +73,7 @@ const ImageWithPlaceholder = ({
             <Center
                 style={{
                     background: 'var(--theme-colors-surface)',
-                    borderRadius: 'var(--theme-card-default-radius)',
+                    borderRadius: 'var(--theme-radius-md)',
                     height: '100%',
                     width: '100%',
                 }}

@@ -1,3 +1,4 @@
+export * from './use-animations-enabled';
 export * from './use-app-focus';
 export * from './use-check-for-updates';
 export * from './use-container-query';

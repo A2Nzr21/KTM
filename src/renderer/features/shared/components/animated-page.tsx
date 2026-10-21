@@ -5,7 +5,7 @@ import { forwardRef } from 'react';
 
 import styles from './animated-page.module.css';
 
-import { animationProps } from '/@/shared/components/animations/animation-props';
+import { useAnimationsEnabled } from '/@/renderer/hooks';
 
 interface AnimatedPageProps {
     children: ReactNode;
@@ -13,11 +13,20 @@ interface AnimatedPageProps {
 
 export const AnimatedPage = forwardRef(
     ({ children }: AnimatedPageProps, ref: Ref<HTMLDivElement>) => {
+        const animationsEnabled = useAnimationsEnabled();
+
         return (
             <motion.main
+                animate={{ opacity: 1, y: 0 }}
                 className={styles.animatedPage}
+                exit={{ opacity: 0 }}
+                initial={{ opacity: 0, y: 8 }}
                 ref={ref}
-                {...{ ...animationProps.fadeIn, transition: { duration: 0.5, ease: 'anticipate' } }}
+                transition={
+                    animationsEnabled
+                        ? { duration: 0.25, ease: [0.16, 1, 0.3, 1] }
+                        : { duration: 0 }
+                }
             >
                 {children}
             </motion.main>

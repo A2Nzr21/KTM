@@ -19,7 +19,7 @@ export const openSettingsModal = () => {
         },
         title: <SettingsHeader showUpdateAvailable />,
         transitionProps: {
-            transition: 'pop',
+            transition: 'fade',
         },
     });
 };

@@ -24,7 +24,7 @@ import {
     useIsRadioActive,
     useRadioPlayer,
 } from '/@/renderer/features/radio/hooks/use-radio-player';
-import { useFastAverageColor } from '/@/renderer/hooks';
+import { useAnimationsEnabled, useFastAverageColor } from '/@/renderer/hooks';
 import {
     useFullScreenPlayerStore,
     useFullScreenPlayerStoreActions,
@@ -40,8 +40,8 @@ const backgroundImageVariants: Variants = {
     closed: {
         opacity: 0,
         transition: {
-            duration: 0.8,
-            ease: 'linear',
+            duration: 0.3,
+            ease: 'easeIn',
         },
     },
     initial: {
@@ -53,7 +53,7 @@ const backgroundImageVariants: Variants = {
             opacity: isOpen ? 1 : 0,
             transition: {
                 duration: 0.4,
-                ease: 'linear',
+                ease: 'easeOut',
             },
         };
     },
@@ -285,6 +285,7 @@ const PlayerContainer = memo(
             src: imageUrl,
             srcLoaded: true,
         });
+        const animationsEnabled = useAnimationsEnabled();
 
         return (
             <motion.div
@@ -293,7 +294,9 @@ const PlayerContainer = memo(
                 custom={{ background, dynamicBackground }}
                 exit="closed"
                 initial="closed"
-                transition={{ duration: 2 }}
+                transition={
+                    animationsEnabled ? { duration: 0.5, ease: 'easeOut' } : { duration: 0 }
+                }
                 variants={containerVariants}
             >
                 <BackgroundImage

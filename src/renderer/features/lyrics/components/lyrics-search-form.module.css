@@ -3,7 +3,7 @@
     box-sizing: border-box !important;
     padding: 0.5rem;
     cursor: pointer;
-    border-radius: 5px;
+    border-radius: var(--theme-radius-md);
 
     &:hover,
     &:active,

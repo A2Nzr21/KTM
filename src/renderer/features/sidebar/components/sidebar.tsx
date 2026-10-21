@@ -21,6 +21,7 @@ import {
     SidebarSharedPlaylistList,
     useSidebarPlaylistAddDragMonitor,
 } from '/@/renderer/features/sidebar/components/sidebar-playlist-list';
+import { useAnimationsEnabled } from '/@/renderer/hooks';
 import {
     useAppStore,
     useAppStoreActions,
@@ -176,6 +177,7 @@ const SidebarImage = () => {
     const isRadioActive = useIsRadioActive();
     const { currentStationArt } = useRadioPlayer();
     const { blurExplicitImages } = useGeneralSettings();
+    const animationsEnabled = useAnimationsEnabled();
 
     const imageUrl = useItemImageUrl({
         id: currentSong?.imageId || undefined,
@@ -226,14 +228,16 @@ const SidebarImage = () => {
         <motion.div
             animate={{ opacity: 1, y: 0 }}
             className={styles.imageContainer}
-            exit={{ opacity: 0, y: 200 }}
-            initial={{ opacity: 0, y: 200 }}
+            exit={{ opacity: 0, y: animationsEnabled ? 12 : 0 }}
+            initial={{ opacity: 0, y: animationsEnabled ? 12 : 0 }}
             key="sidebar-image"
             onClick={expandFullScreenPlayer}
             onContextMenu={handleToggleContextMenu}
             role="button"
             style={{ aspectRatio: 1 }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            transition={
+                animationsEnabled ? { duration: 0.25, ease: [0.16, 1, 0.3, 1] } : { duration: 0 }
+            }
         >
             <Tooltip label={t('player.toggleFullscreenPlayer')}>
                 {isRadioActive && radioImageUrl ? (
@@ -243,7 +247,7 @@ const SidebarImage = () => {
                         className={styles.sidebarImage}
                         style={{
                             background: 'var(--theme-colors-surface)',
-                            borderRadius: 'var(--theme-card-default-radius)',
+                            borderRadius: 'var(--theme-radius-md)',
                             height: '100%',
                             width: '100%',
                         }}

@@ -5,6 +5,7 @@ import { useLocation } from 'react-router';
 import styles from './side-drawer-queue.module.css';
 
 import { DrawerPlayQueue } from '/@/renderer/features/now-playing/components/drawer-play-queue';
+import { useAnimationsEnabled } from '/@/renderer/hooks';
 import { AppRoute } from '/@/renderer/router/routes';
 import { useAppStore } from '/@/renderer/store';
 import { Icon } from '/@/shared/components/icon/icon';
@@ -22,8 +23,8 @@ const queueDrawerVariants: Variants = {
         right: 0,
         top: '75px',
         transition: {
-            duration: 0.4,
-            ease: 'anticipate',
+            duration: 0.25,
+            ease: [0.16, 1, 0.3, 1],
         },
         width: '450px',
         x: '50vw',
@@ -38,11 +39,9 @@ const queueDrawerVariants: Variants = {
         right: '20px',
         top: '75px',
         transition: {
-            damping: 10,
             delay: 0,
-            duration: 0.4,
-            ease: 'anticipate',
-            mass: 0.5,
+            duration: 0.3,
+            ease: [0.16, 1, 0.3, 1],
         },
         width: '450px',
         x: 0,
@@ -53,12 +52,12 @@ const queueDrawerVariants: Variants = {
 const queueDrawerButtonVariants: Variants = {
     hidden: {
         opacity: 0,
-        transition: { duration: 0.2 },
+        transition: { duration: 0.15 },
         x: 100,
     },
     visible: {
         opacity: 0.5,
-        transition: { duration: 0.1, ease: 'anticipate' },
+        transition: { duration: 0.15, ease: 'easeOut' },
         x: 0,
     },
 };
@@ -67,8 +66,9 @@ export const SideDrawerQueue = () => {
     const location = useLocation();
     const [drawer, drawerHandler] = useDisclosure(false);
     const rightExpanded = useAppStore((state) => state.sidebar.rightExpanded);
+    const animationsEnabled = useAnimationsEnabled();
 
-    const drawerTimeout = useTimeout(() => drawerHandler.open(), 500);
+    const drawerTimeout = useTimeout(() => drawerHandler.open(), animationsEnabled ? 500 : 0);
 
     const handleEnterDrawerButton = useCallback(() => {
         drawerTimeout.start();
@@ -93,7 +93,7 @@ export const SideDrawerQueue = () => {
                     onMouseEnter={handleEnterDrawerButton}
                     onMouseLeave={handleLeaveDrawerButton}
                     variants={queueDrawerButtonVariants}
-                    whileHover={{ opacity: 1, scale: 2, transition: { duration: 0.5 } }}
+                    whileHover={{ opacity: 1, transition: { duration: 0.15 } }}
                 >
                     <Icon icon="arrowLeftToLine" size="lg" />
                 </motion.div>

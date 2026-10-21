@@ -63,30 +63,36 @@
     }
 }
 
-/* Soft breathing glow on the cover while music plays */
-body.app-playing .image::after {
+/* Soft breathing glow on the cover while music plays. Static box-shadow on a
+   pseudo-element, only opacity animates (compositor-only, no per-frame repaint). */
+.image::after {
     position: absolute;
     inset: 0;
     pointer-events: none;
     content: '';
     border-radius: var(--theme-radius-md);
-    box-shadow: 0 0 0 0 alpha(var(--theme-colors-primary), 45%);
+    box-shadow: 0 0 12px 1px alpha(var(--theme-colors-primary), 20%);
+    opacity: 0;
+}
+
+body.app-playing .image::after {
     animation: cover-glow 2.4s ease-in-out infinite;
 }
 
 @keyframes cover-glow {
     0%,
     100% {
-        box-shadow: 0 0 0 0 alpha(var(--theme-colors-primary), 35%);
+        opacity: 0.6;
     }
 
     50% {
-        box-shadow: 0 0 12px 1px alpha(var(--theme-colors-primary), 20%);
+        opacity: 1;
     }
 }
 
 /* Minimal animation level: no glow, no track-swap slide */
 :global(body[data-anim-level='minimal']) .image::after {
+    opacity: 0 !important;
     animation: none !important;
 }
 

@@ -43,6 +43,12 @@ body[data-slider-dragging] .bar {
             opacity: 1;
         }
     }
+
+    &:focus-within {
+        .thumb {
+            opacity: 1;
+        }
+    }
 }
 
 .thumb {
@@ -50,7 +56,7 @@ body[data-slider-dragging] .bar {
     height: 1rem;
     border-color: var(--theme-colors-primary-filled);
     border-width: 1px;
-    opacity: 0;
+    opacity: 0.35;
     transition: opacity 0.2s ease-in-out;
 }
 

@@ -56,7 +56,6 @@
     z-index: 15;
     background-color: var(--theme-bg-primary);
     box-shadow: 0 -1px 0 0 var(--theme-colors-border);
-    transition: position 0.2s ease-in-out;
 }
 
 .item-table-pinned-rows-grid-container.header-window-bar {

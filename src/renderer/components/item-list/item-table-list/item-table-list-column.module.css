@@ -97,6 +97,7 @@
     pointer-events: none;
     content: '';
     background-color: var(--row-overlay-color);
+    transition: background-color 0.15s ease;
 }
 
 .container.data-row.with-vertical-border::before {
@@ -406,4 +407,24 @@
 
 .resize-handle:hover {
     opacity: 1;
+}
+
+/* Hover-only elements (play icon, expand arrow, row actions) pop in via display
+   toggles; give the swap a fade with @starting-style and a discrete display
+   transition so the element never occupies layout while hidden. */
+.container :global(.hover-only),
+.container :global(.hover-only-flex),
+.container :global(.hide-on-hover) {
+    transition:
+        opacity 0.15s ease,
+        display 0.15s allow-discrete;
+}
+
+@starting-style {
+    .container.data-row:hover :global(.hover-only),
+    .container.data-row[data-row-hovered='true'] :global(.hover-only),
+    .container.data-row:hover :global(.hover-only-flex),
+    .container.data-row[data-row-hovered='true'] :global(.hover-only-flex) {
+        opacity: 0;
+    }
 }
