@@ -27,6 +27,7 @@ import path, { join } from 'path';
 import semver from 'semver';
 
 import packageJson from '../../package.json';
+import { handleKtmLocalRoute } from './features/core/local-library';
 import { disableMediaKeys, enableMediaKeys } from './features/core/player/media-keys';
 import { shutdownServer } from './features/core/remote';
 import { store } from './features/core/settings';
@@ -1137,7 +1138,20 @@ if (!singleInstance) {
                 version: packageJson.version,
             });
 
-            protocol.handle('ktm', async () => {
+            protocol.handle('ktm', async (request) => {
+                if (new URL(request.url).pathname.startsWith('/local/')) {
+                    const localResponse = await handleKtmLocalRoute(request);
+
+                    if (localResponse) {
+                        return localResponse;
+                    }
+
+                    return new Response(null, {
+                        status: 404,
+                        statusText: 'Not Found',
+                    });
+                }
+
                 const filePath = store.get('local_font_path');
                 if (typeof filePath !== 'string') {
                     getMainWindow()?.webContents.send('custom-font-error', filePath);

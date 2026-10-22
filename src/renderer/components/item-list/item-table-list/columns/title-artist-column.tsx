@@ -100,7 +100,6 @@ export const QueueSongTitleArtistColumn = (props: ItemTableListInnerColumn) => {
     const alignClass =
         align === 'center' ? 'align-center' : align === 'end' ? 'align-right' : 'align-left';
 
-    // Same as title-column: bars only on the active queue row
     const showBars = isActive && props.itemType === LibraryItem.QUEUE_SONG;
 
     if (row && 'name' in row && 'artists' in row) {

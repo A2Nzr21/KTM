@@ -20,9 +20,6 @@ a.name-container {
     -webkit-line-clamp: 4;
 }
 
-/* Now-playing title: primary color with a slow gradient shimmer sweeping
-   through the text. Transparent color + background-clip: text shows the
-   gradient through the glyphs. */
 .active {
     color: transparent;
     background: linear-gradient(
@@ -49,7 +46,6 @@ a.name-container {
     }
 }
 
-/* Minimal animation level: static primary color, no sweep */
 :global(body[data-anim-level='minimal']) .active {
     color: var(--theme-colors-primary);
     background: none;

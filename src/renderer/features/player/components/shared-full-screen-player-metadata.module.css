@@ -17,8 +17,6 @@
     }
 }
 
-/* Track change: title/artist/album/badges slide up + fade in, staggered.
-   Re-triggers because the component remounts per song (key on song id in tsx). */
 .metadata-container > * {
     animation: metadata-enter 0.3s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
@@ -40,7 +38,6 @@
     }
 }
 
-/* Minimal animation level: metadata appears instantly */
 :global(body[data-anim-level='minimal']) .metadata-container > * {
     animation: none !important;
 }

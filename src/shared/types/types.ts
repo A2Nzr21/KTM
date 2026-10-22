@@ -55,6 +55,7 @@ export enum Platform {
 
 export enum ServerType {
     JELLYFIN = 'jellyfin',
+    LOCAL = 'local',
     NAVIDROME = 'navidrome',
     SUBSONIC = 'subsonic',
 }
@@ -87,6 +88,8 @@ export const toServerType = (value?: string): null | ServerType => {
     switch (value?.toLowerCase()) {
         case ServerType.JELLYFIN:
             return ServerType.JELLYFIN;
+        case ServerType.LOCAL:
+            return ServerType.LOCAL;
         case ServerType.NAVIDROME:
             return ServerType.NAVIDROME;
         case ServerType.SUBSONIC:

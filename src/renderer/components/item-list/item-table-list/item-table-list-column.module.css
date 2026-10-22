@@ -409,9 +409,6 @@
     opacity: 1;
 }
 
-/* Hover-only elements (play icon, expand arrow, row actions) pop in via display
-   toggles; give the swap a fade with @starting-style and a discrete display
-   transition so the element never occupies layout while hidden. */
 .container :global(.hover-only),
 .container :global(.hover-only-flex),
 .container :global(.hide-on-hover) {

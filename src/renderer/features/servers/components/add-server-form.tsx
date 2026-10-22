@@ -10,6 +10,7 @@ import {
     isServerLock,
 } from '/@/renderer/features/action-required/utils/window-properties';
 import JellyfinIcon from '/@/renderer/features/servers/assets/jellyfin.png';
+import LocalIcon from '/@/renderer/features/servers/assets/local.png';
 import NavidromeIcon from '/@/renderer/features/servers/assets/navidrome.png';
 import SubsonicIcon from '/@/renderer/features/servers/assets/opensubsonic.png';
 import { IgnoreCorsSslSwitches } from '/@/renderer/features/servers/components/ignore-cors-ssl-switches';
@@ -39,6 +40,7 @@ import { DiscoveredServerItem, ServerType, toServerType } from '/@/shared/types/
 
 const autodiscover = isElectron() ? window.api.autodiscover : null;
 const localSettings = isElectron() ? window.api.localSettings : null;
+const localLibraryApi = isElectron() ? window.api.localLibrary : null;
 
 interface AddServerFormProps {
     onCancel: (() => void) | null;
@@ -81,6 +83,10 @@ const SERVER_TYPES: Record<ServerType, ServerDetails> = {
     [ServerType.JELLYFIN]: {
         icon: JellyfinIcon,
         name: 'Jellyfin',
+    },
+    [ServerType.LOCAL]: {
+        icon: LocalIcon,
+        name: 'Local',
     },
     [ServerType.NAVIDROME]: {
         icon: NavidromeIcon,
@@ -135,7 +141,9 @@ export const AddServerForm = ({ onCancel }: AddServerFormProps) => {
         form.values.type === ServerType.JELLYFIN && signInMethod === 'quickConnect';
 
     const isSubmitDisabled =
-        !form.values.name || !form.values.url || (!showQuickConnect && !form.values.username);
+        form.values.type === ServerType.LOCAL
+            ? !form.values.name
+            : !form.values.name || !form.values.url || (!showQuickConnect && !form.values.username);
 
     const {
         code: quickConnectCode,
@@ -192,6 +200,43 @@ export const AddServerForm = ({ onCancel }: AddServerFormProps) => {
             toast.error({
                 message: t('error.serverLockSingleServer'),
             });
+            return;
+        }
+
+        if (values.type === ServerType.LOCAL) {
+            setIsLoading(true);
+
+            if (!localLibraryApi) {
+                setIsLoading(false);
+                return;
+            }
+
+            const folder = await localLibraryApi.pickFolder();
+
+            if (!folder) {
+                setIsLoading(false);
+                return;
+            }
+
+            await localLibraryApi.addFolder(folder);
+            await localLibraryApi.startScan();
+
+            const serverItem: ServerListItemWithCredential = {
+                credential: 'local',
+                id: nanoid(),
+                isAdmin: true,
+                name: values.name || 'Local',
+                type: ServerType.LOCAL,
+                url: 'local',
+                userId: 'local-user',
+                username: 'Local',
+            };
+
+            addServer(serverItem);
+            setCurrentServer(serverItem);
+            closeAllModals();
+            toast.success({ message: t('form.addServer.success') });
+            setIsLoading(false);
             return;
         }
 
@@ -325,28 +370,35 @@ export const AddServerForm = ({ onCancel }: AddServerFormProps) => {
                             required
                             {...form.getInputProps('name')}
                         />
+                        {form.values.type !== ServerType.LOCAL && (
+                            <TextInput
+                                disabled={serverLock}
+                                label={t('form.addServer.input', {
+                                    context: 'url',
+                                })}
+                                required
+                                {...form.getInputProps('url')}
+                            />
+                        )}
+                    </Group>
+                    {form.values.type === ServerType.LOCAL && (
+                        <Text>{t('form.addServer.input', { context: 'localFolderHint' })}</Text>
+                    )}
+                    {form.values.type !== ServerType.LOCAL && (
                         <TextInput
+                            description={t('form.addServer.input', {
+                                context: 'remoteUrlDescription',
+                            })}
                             disabled={serverLock}
                             label={t('form.addServer.input', {
-                                context: 'url',
+                                context: 'remoteUrl',
                             })}
-                            required
-                            {...form.getInputProps('url')}
+                            placeholder={t('form.addServer.input', {
+                                context: 'remoteUrlPlaceholder',
+                            })}
+                            {...form.getInputProps('remoteUrl')}
                         />
-                    </Group>
-                    <TextInput
-                        description={t('form.addServer.input', {
-                            context: 'remoteUrlDescription',
-                        })}
-                        disabled={serverLock}
-                        label={t('form.addServer.input', {
-                            context: 'remoteUrl',
-                        })}
-                        placeholder={t('form.addServer.input', {
-                            context: 'remoteUrlPlaceholder',
-                        })}
-                        {...form.getInputProps('remoteUrl')}
-                    />
+                    )}
                     {form.values.remoteUrl && (
                         <Checkbox
                             label={t('form.addServer.input', {
@@ -373,7 +425,7 @@ export const AddServerForm = ({ onCancel }: AddServerFormProps) => {
                             value={signInMethod}
                         />
                     )}
-                    {!showQuickConnect && (
+                    {!showQuickConnect && form.values.type !== ServerType.LOCAL && (
                         <>
                             <TextInput
                                 label={t('form.addServer.input', {

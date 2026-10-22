@@ -121,7 +121,6 @@ a.title {
     height: 24px;
 }
 
-/* Now-playing title: same shimmer as title-column */
 .active {
     color: transparent;
     background: linear-gradient(
@@ -148,7 +147,6 @@ a.title {
     }
 }
 
-/* Minimal animation level: static primary color, no sweep */
 :global(body[data-anim-level='minimal']) .active {
     color: var(--theme-colors-primary);
     background: none;

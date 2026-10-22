@@ -2942,17 +2942,14 @@ export const useSettingsStore = createWithEqualityFn<SettingsSlice>()(
                     });
                 }
 
-                // v35: pause now clears the Discord presence by default
                 if (version < 35) {
                     state.discord.showPaused = false;
                 }
 
-                // v36: default to "Listening to" presence (progress bar in Discord)
                 if (version < 36) {
                     state.discord.showAsListening = true;
                 }
 
-                // v37: animations level control (all/minimal)
                 if (version < 37) {
                     state.general.enableAnimations = 'all' as AnimationLevel;
                 }

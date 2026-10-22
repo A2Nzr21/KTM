@@ -1,5 +1,6 @@
 import i18n from '/@/i18n/i18n';
 import { JellyfinController } from '/@/renderer/api/jellyfin/jellyfin-controller';
+import { LocalController } from '/@/renderer/api/local/local-controller';
 import { NavidromeController } from '/@/renderer/api/navidrome/navidrome-controller';
 import { SubsonicController } from '/@/renderer/api/subsonic/subsonic-controller';
 import { mergeMusicFolderId } from '/@/renderer/api/utils-music-folder';
@@ -16,12 +17,14 @@ import {
 
 type ApiController = {
     jellyfin: InternalControllerEndpoint;
+    local: InternalControllerEndpoint;
     navidrome: InternalControllerEndpoint;
     subsonic: InternalControllerEndpoint;
 };
 
 const endpoints: ApiController = {
     jellyfin: JellyfinController,
+    local: LocalController,
     navidrome: NavidromeController,
     subsonic: SubsonicController,
 };

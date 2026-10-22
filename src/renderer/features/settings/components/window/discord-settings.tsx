@@ -94,25 +94,6 @@ export const DiscordSettings = memo(() => {
         {
             control: (
                 <Switch
-                    checked={settings.showStateIcon}
-                    onChange={(e) => {
-                        setSettings({
-                            discord: {
-                                showStateIcon: e.currentTarget.checked,
-                            },
-                        });
-                    }}
-                />
-            ),
-            description: t('setting.discordStateIcon', {
-                context: 'description',
-            }),
-            isHidden: !isElectron(),
-            title: t('setting.discordStateIcon'),
-        },
-        {
-            control: (
-                <Switch
                     checked={settings.showAsListening}
                     onChange={(e) => {
                         setSettings({
@@ -211,29 +192,7 @@ export const DiscordSettings = memo(() => {
                 discord: 'Discord',
             }),
         },
-        {
-            control: (
-                <Switch
-                    checked={settings.showServerImage}
-                    onChange={(e) => {
-                        setSettings({
-                            discord: {
-                                showServerImage: e.currentTarget.checked,
-                            },
-                        });
-                    }}
-                />
-            ),
-            description: t('setting.discordServeImage', {
-                context: 'description',
 
-                discord: 'Discord',
-            }),
-            isHidden: !isElectron(),
-            title: t('setting.discordServeImage', {
-                discord: 'Discord',
-            }),
-        },
         {
             control: (
                 <TextInput

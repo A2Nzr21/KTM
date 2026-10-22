@@ -53,9 +53,6 @@
     }
 }
 
-/* While playing: soft primary halo breathing around the main play button.
-   Static box-shadow on a pseudo-element, only opacity animates (compositor-only,
-   no per-frame shadow repaint). */
 .main::after {
     position: absolute;
     inset: 0;
@@ -81,7 +78,6 @@ body.app-playing .main::after {
     }
 }
 
-/* Minimal animation level: no halo */
 :global(body[data-anim-level='minimal']) .main::after {
     opacity: 0 !important;
     animation: none !important;

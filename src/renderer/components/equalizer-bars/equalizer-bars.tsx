@@ -3,7 +3,6 @@ import clsx from 'clsx';
 import styles from './equalizer-bars.module.css';
 
 interface EqualizerBarsProps {
-    /** Pauses the bars (e.g. playback paused) without unmounting. */
     paused?: boolean;
 }
 

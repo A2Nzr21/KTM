@@ -1,5 +1,4 @@
 export const disableAutoUpdates = () => {
-    // KTM has no update server; never check for updates.
     return true;
 };
 

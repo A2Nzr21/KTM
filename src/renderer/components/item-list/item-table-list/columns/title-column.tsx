@@ -86,8 +86,6 @@ function QueueSongTitleColumn(props: ItemTableListInnerColumn) {
     const song = rowItem as QueueSong;
     const isActive = useIsActiveRow(song?.id, song?._uniqueId);
 
-    // Equalizer bars live on the active queue row; they pause with playback
-    // via the body.app-playing class driven by the playerbar.
     const showBars = isActive && props.itemType === LibraryItem.QUEUE_SONG;
 
     const path = useMemo(() => {

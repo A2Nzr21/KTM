@@ -7,4 +7,5 @@ import './remote';
 import './settings';
 import './discord-rpc';
 import './tag-editor';
+import './local-library';
 import './visualizer';

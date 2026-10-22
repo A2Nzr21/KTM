@@ -16,9 +16,6 @@
 
 body {
     margin: 0;
-
-    /* Smooth theme switches: colors glide instead of snapping. Short duration
-       so it never lags behind rapid theme changes or drags. */
     transition:
         background-color 0.3s ease,
         color 0.3s ease;
@@ -125,22 +122,12 @@ button {
     }
 }
 
-/* Smooth theme switches: colors glide instead of snapping. Short duration so
-   it never lags behind rapid theme changes or drags. */
 img,
 svg {
     transition: filter 0.3s ease;
 }
 
-/* NOTE: no prefers-reduced-motion guard. Windows gaming PCs commonly disable
-   "client area animations" (SPI_GETCLIENTAREAANIMATION), which Electron maps to
-   prefers-reduced-motion: reduce - and that would kill every animation in the
-   app for users who explicitly asked for them. KTM always animates. */
 
-/* Animation level control lives in Settings > General and drives
-   body[data-anim-level]. Each module CSS gates its own decorative animations
-   under body[data-anim-level='minimal'] so rules sit next to what they
-   animate. Functional transitions (hover colors, quick fades) stay in both. */
 
 @font-face {
     font-family: Symbola;

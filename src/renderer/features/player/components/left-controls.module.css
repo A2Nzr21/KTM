@@ -15,7 +15,6 @@
     overflow: hidden;
 }
 
-/* Track change in the playerbar: whole block slides in from below, quick + subtle */
 .track-swap {
     display: flex;
     flex-direction: column;
@@ -63,8 +62,6 @@
     }
 }
 
-/* Soft breathing glow on the cover while music plays. Static box-shadow on a
-   pseudo-element, only opacity animates (compositor-only, no per-frame repaint). */
 .image::after {
     position: absolute;
     inset: 0;
@@ -90,7 +87,6 @@ body.app-playing .image::after {
     }
 }
 
-/* Minimal animation level: no glow, no track-swap slide */
 :global(body[data-anim-level='minimal']) .image::after {
     opacity: 0 !important;
     animation: none !important;

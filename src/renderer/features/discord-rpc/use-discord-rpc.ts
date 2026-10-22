@@ -21,7 +21,6 @@ import {
     useSettingsStore,
     useTimestampStoreBase,
 } from '/@/renderer/store';
-import { sentenceCase } from '/@/renderer/utils';
 import { logger } from '/@/renderer/utils/logger';
 import { useDebouncedCallback } from '/@/shared/hooks/use-debounced-callback';
 import { LibraryItem, QueueSong, ServerType } from '/@/shared/types/domain-types';
@@ -133,18 +132,8 @@ export const useDiscordRpc = () => {
                     instance: false,
                     largeImageKey: 'icon',
                     largeImageText: truncate(stationName || 'Radio'),
-                    smallImageKey:
-                        current[2] === PlayerStatus.PLAYING
-                            ? discordSettings.showStateIcon
-                                ? 'playing'
-                                : undefined
-                            : 'paused',
-                    smallImageText:
-                        current[2] === PlayerStatus.PLAYING
-                            ? discordSettings.showStateIcon
-                                ? sentenceCase(current[2])
-                                : undefined
-                            : sentenceCase(current[2]),
+                    smallImageKey: 'icon',
+                    smallImageText: 'KTM',
                     state: truncate(artist),
                     statusDisplayType: statusDisplayMap[discordSettings.displayType],
                     type: discordSettings.showAsListening ? 2 : 0,
@@ -190,7 +179,6 @@ export const useDiscordRpc = () => {
 
             const artists = song?.artists.map((artist) => artist.name).join(', ');
 
-            // Show the audio format (FLAC, MP3, ...) after the song name
             const format = (song.codec || song.container || '').toUpperCase();
             const detailsText = song?.name ? `${song.name}${format ? ` [${format}]` : ''}` : 'Idle';
 
@@ -262,19 +250,18 @@ export const useDiscordRpc = () => {
                     activity.startTimestamp = start;
                     activity.endTimestamp = end;
                 }
-
-                if (discordSettings.showStateIcon) {
-                    activity.smallImageKey = 'playing';
-                    activity.smallImageText = sentenceCase(current[2]);
-                }
-            } else {
-                activity.smallImageKey = 'paused';
-                activity.smallImageText = sentenceCase(current[2]);
             }
 
-            if (discordSettings.showServerImage && song) {
+            activity.smallImageKey = 'icon';
+            activity.smallImageText = 'KTM';
+
+            if (song) {
                 if (song._uniqueId === currentSong?._uniqueId && imageUrlRef.current) {
-                    if (song._serverType === ServerType.JELLYFIN) {
+                    if (song._serverType === ServerType.LOCAL) {
+                        if (song.imageUrl) {
+                            activity.largeImageKey = song.imageUrl;
+                        }
+                    } else if (song._serverType === ServerType.JELLYFIN) {
                         activity.largeImageKey = imageUrlRef.current;
                     } else if (
                         song._serverType === ServerType.NAVIDROME ||
@@ -350,8 +337,6 @@ export const useDiscordRpc = () => {
         },
         [
             discordSettings.showAsListening,
-            discordSettings.showServerImage,
-            discordSettings.showStateIcon,
             discordSettings.showPaused,
             lastfmApiKey,
             discordSettings.clientId,

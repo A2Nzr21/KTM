@@ -358,6 +358,7 @@
             "input_jellyfinSignInMethodPassword": "Password",
             "input_jellyfinSignInMethodQuickConnect": "Quick Connect",
             "input_legacyAuthentication": "Enable legacy authentication",
+            "input_localFolderHint": "Pick a music folder when you add the server. Songs are scanned from your disk and played offline.",
             "input_name": "Server Name",
             "input_password": "Password",
             "input_passwordNoSSO": "Reverse proxy (SSO) authentication is not supported. Only username/password authentication and Subsonic authentication are supported",

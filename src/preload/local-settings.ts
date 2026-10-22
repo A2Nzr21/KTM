@@ -65,6 +65,8 @@ export const toServerType = (value?: string): null | string => {
     switch (value?.toLowerCase()) {
         case 'jellyfin':
             return 'jellyfin';
+        case 'local':
+            return 'local';
         case 'navidrome':
             return 'navidrome';
         case 'subsonic':

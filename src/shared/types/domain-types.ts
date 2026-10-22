@@ -35,6 +35,7 @@ export enum LibraryItem {
 
 export enum ServerType {
     JELLYFIN = 'jellyfin',
+    LOCAL = 'local',
     NAVIDROME = 'navidrome',
     SUBSONIC = 'subsonic',
 }

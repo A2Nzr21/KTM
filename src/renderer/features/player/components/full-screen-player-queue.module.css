@@ -91,7 +91,6 @@
     bottom: 0;
 }
 
-/* Tab buttons: tiny lift on hover for tactile feedback */
 .controls-container button {
     transition:
         background-color 0.2s ease,

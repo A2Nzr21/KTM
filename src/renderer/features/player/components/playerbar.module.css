@@ -18,7 +18,6 @@
     }
 }
 
-/* Minimal animation level: no entrance slide */
 :global(body[data-anim-level='minimal']) .container {
     animation: none !important;
 }
