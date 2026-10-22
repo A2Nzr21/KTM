@@ -11,6 +11,7 @@ export const localLibrary = {
     pickFolder: () => ipcRenderer.invoke('local-library:pick-folder'),
     removeFolder: (folder: string) => ipcRenderer.invoke('local-library:remove-folder', folder),
     scanStatus: () => ipcRenderer.invoke('local-library:scan-status'),
+    scrobble: (songId: string) => ipcRenderer.invoke('local-library:scrobble', songId),
     startScan: () => ipcRenderer.invoke('local-library:start-scan'),
     toggleFavorite: (songId: string) => ipcRenderer.invoke('local-library:toggle-favorite', songId),
 };

@@ -43,6 +43,14 @@ const MAX_URL_LENGTH = 256;
 const truncate = (field: string) =>
     field.length <= MAX_FIELD_LENGTH ? field : field.substring(0, MAX_FIELD_LENGTH - 1) + '…';
 
+const isDiscordImageUrl = (url: string) => {
+    try {
+        return new URL(url).protocol === 'https:';
+    } catch {
+        return false;
+    }
+};
+
 export const useDiscordRpc = () => {
     const discordSettings = useDiscordSettings();
     const lastfmApiKey = useLastfmApiKey();
@@ -256,13 +264,11 @@ export const useDiscordRpc = () => {
             activity.smallImageText = 'KTM';
 
             if (song) {
-                if (song._uniqueId === currentSong?._uniqueId && imageUrlRef.current) {
-                    if (song._serverType === ServerType.LOCAL) {
-                        if (song.imageUrl) {
-                            activity.largeImageKey = song.imageUrl;
+                if (song._uniqueId === currentSong?._uniqueId) {
+                    if (song._serverType === ServerType.JELLYFIN) {
+                        if (imageUrlRef.current && isDiscordImageUrl(imageUrlRef.current)) {
+                            activity.largeImageKey = imageUrlRef.current;
                         }
-                    } else if (song._serverType === ServerType.JELLYFIN) {
-                        activity.largeImageKey = imageUrlRef.current;
                     } else if (
                         song._serverType === ServerType.NAVIDROME ||
                         song._serverType === ServerType.SUBSONIC
@@ -276,7 +282,7 @@ export const useDiscordRpc = () => {
                                 query: { id: song.albumId },
                             });
 
-                            if (info.imageUrl) {
+                            if (info.imageUrl && isDiscordImageUrl(info.imageUrl)) {
                                 activity.largeImageKey = info.imageUrl;
                             }
                         } catch {

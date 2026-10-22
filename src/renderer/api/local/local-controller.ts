@@ -794,12 +794,7 @@ export const LocalController: InternalControllerEndpoint = {
     savePlayQueue: async () => undefined,
     scrobble: async ({ query }) => {
         if (query.submission) {
-            const library = await getLibrary();
-            const song = library.songs.find((s) => s.id === query.id);
-
-            if (song) {
-                song.playCount += 1;
-            }
+            await window.api.localLibrary.scrobble(query.id);
         }
 
         return null;

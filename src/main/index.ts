@@ -343,7 +343,10 @@ function createGithubUpdaterInstance(
 }
 
 protocol.registerSchemesAsPrivileged([
-    { privileges: { bypassCSP: true, corsEnabled: true }, scheme: 'ktm' },
+    {
+        privileges: { bypassCSP: true, corsEnabled: true, stream: true, supportFetchAPI: true },
+        scheme: 'ktm',
+    },
 ]);
 
 process.on('uncaughtException', (error: any) => {
@@ -1139,7 +1142,9 @@ if (!singleInstance) {
             });
 
             protocol.handle('ktm', async (request) => {
-                if (new URL(request.url).pathname.startsWith('/local/')) {
+                const url = new URL(request.url);
+
+                if (url.host === 'local') {
                     const localResponse = await handleKtmLocalRoute(request);
 
                     if (localResponse) {

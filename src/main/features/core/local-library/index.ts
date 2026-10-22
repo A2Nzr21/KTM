@@ -414,12 +414,8 @@ export const handleKtmLocalRoute = async (request: Request) => {
     const url = new URL(request.url);
     const parts = url.pathname.split('/').filter(Boolean);
 
-    if (parts[0] !== 'local') {
-        return null;
-    }
-
-    if (parts[1] === 'stream' && parts[2]) {
-        const song = getSongById(decodeURIComponent(parts[2]));
+    if (parts[0] === 'stream' && parts[1]) {
+        const song = getSongById(decodeURIComponent(parts[1]));
 
         if (!song) {
             return new Response(null, { status: 404, statusText: 'Not Found' });
@@ -431,8 +427,8 @@ export const handleKtmLocalRoute = async (request: Request) => {
         );
     }
 
-    if (parts[1] === 'img' && parts[2]) {
-        const imgPath = decodeURIComponent(parts[2]);
+    if (parts[0] === 'img' && parts[1]) {
+        const imgPath = decodeURIComponent(parts[1]);
 
         const imgIsSafe = /^[a-zA-Z]:[\\/]/.test(imgPath) || normalize(imgPath).startsWith(sep);
 
@@ -444,7 +440,10 @@ export const handleKtmLocalRoute = async (request: Request) => {
             const payload = await fs.readFile(imgPath);
 
             return new Response(payload, {
-                headers: { 'Content-Type': guessImageMime(imgPath) },
+                headers: {
+                    'Access-Control-Allow-Origin': '*',
+                    'Content-Type': guessImageMime(imgPath),
+                },
             });
         } catch {
             return new Response(null, { status: 404, statusText: 'Not Found' });
@@ -512,6 +511,7 @@ const createAudioResponse = async (filePath: string, rangeHeader: null | string)
             return new Response(rangeStream, {
                 headers: {
                     'Accept-Ranges': 'bytes',
+                    'Access-Control-Allow-Origin': '*',
                     'Content-Length': `${end - start + 1}`,
                     'Content-Range': `bytes ${start}-${end}/${total}`,
                     'Content-Type': contentType,
@@ -525,6 +525,7 @@ const createAudioResponse = async (filePath: string, rangeHeader: null | string)
     return new Response(stream, {
         headers: {
             'Accept-Ranges': 'bytes',
+            'Access-Control-Allow-Origin': '*',
             'Content-Length': `${total}`,
             'Content-Type': contentType,
         },
@@ -586,6 +587,17 @@ const registerIpc = () => {
         song.userFavorite = !song.userFavorite;
         void saveLibrary();
         return { favorite: song.userFavorite };
+    });
+
+    ipcMain.handle('local-library:scrobble', (_event, songId: string) => {
+        const song = getSongById(songId);
+
+        if (song) {
+            song.playCount += 1;
+            void saveLibrary();
+        }
+
+        return { playCount: song?.playCount ?? 0 };
     });
 };
 
