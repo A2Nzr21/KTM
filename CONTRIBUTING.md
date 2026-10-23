@@ -21,18 +21,6 @@ Useful development commands include:
 - `pnpm run package:dev` - Quick unpacked production build
 - `pnpm run build:remote` - Manually rebuild the remote app if you make changes
 
-## AI Disclosure
-
-AI-generated code **is accepted** under the following conditions:
-
-1. You are a professional or hobbyist developer using agentic coding as a tool rather than a crutch
-2. You are manually reviewing the output code before submitting the pull-request
-3. You are manually testing the functionality of your code before submitting the pull-request
-
-Pull requests are **manually reviewed** by maintainers which means that submitting any form of slop wastes our precious time that could otherwise go towards fixing bugs or implementing new features.
-
-When communicating with maintainers or other users in issues, discussions, or pull requests, DO NOT respond to others with solely AI generated text. I and other maintainers spend REAL and VALUABLE time maintaining this project, so communicating in your own words is the bare minimum that I ask of you.
-
 ## Pull requests
 
 Please include:
