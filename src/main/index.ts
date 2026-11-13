@@ -58,15 +58,20 @@ const ALPHA_UPDATER_CONFIG: {
 };
 
 const GITHUB_UPDATER_CONFIG = {
-    owner: 'jeffvli',
+    owner: 'A2Nzr21',
     provider: 'github' as const,
-    repo: 'feishin',
+    repo: 'KTM',
 };
 
 type UpdaterInstance = AppImageUpdater | MacUpdater | NsisUpdater | typeof autoUpdater;
 
 class AppUpdater {
     constructor() {
+        const storedChannel = store.get('release_channel') as string | undefined;
+        if (!storedChannel || storedChannel === 'alpha' || storedChannel === 'beta') {
+            store.set('release_channel', 'latest');
+        }
+
         const effectiveChannel = store.get('release_channel') as string;
         log.info('Effective update channel:', effectiveChannel);
         if (effectiveChannel === 'alpha') {
@@ -102,28 +107,26 @@ class AppUpdater {
         const updater = configureAndGetUpdater();
         attachUpdaterMilestoneLogs(updater);
 
-        if (isMacOS()) {
-            autoUpdater.autoDownload = false;
-            autoUpdater
-                .checkForUpdates()
-                .then((result) => {
-                    if (result?.isUpdateAvailable) {
-                        log.info('Updater check complete', {
-                            available: true,
-                            version: result.updateInfo.version,
-                        });
-                        getMainWindow()?.webContents.send(
-                            'update-available',
-                            result.updateInfo.version,
-                        );
-                    } else {
-                        log.info('Updater check complete', { available: false });
-                    }
-                })
-                .catch((err) => log.error('Check for updates failed', err));
-        } else {
-            autoUpdater.checkForUpdatesAndNotify();
-        }
+        updater.autoDownload = false;
+        updater.disableDifferentialDownload = false;
+
+        updater
+            .checkForUpdates()
+            .then((result) => {
+                if (result?.isUpdateAvailable && result.updateInfo?.version) {
+                    log.info('Updater check complete', {
+                        available: true,
+                        version: result.updateInfo.version,
+                    });
+                    getMainWindow()?.webContents.send(
+                        'update-available',
+                        result.updateInfo.version,
+                    );
+                } else {
+                    log.info('Updater check complete', { available: false });
+                }
+            })
+            .catch((err) => log.error('Check for updates failed', err));
     }
 }
 
@@ -142,15 +145,21 @@ function attachUpdaterMilestoneLogs(updater: UpdaterInstance): void {
         log.info('Updater update not available', { version: info.version });
     });
 
-    updater.on('download-progress', () => {
+    updater.on('download-progress', (progress) => {
         if (!downloadStarted) {
             downloadStarted = true;
             log.info('Updater download starting');
         }
+        getMainWindow()?.webContents.send('update-download-progress', {
+            percent: progress.percent,
+            total: progress.total,
+            transferred: progress.transferred,
+        });
     });
 
     updater.on('update-downloaded', (info) => {
         log.info('Updater download complete', { version: info.version });
+        getMainWindow()?.webContents.send('update-downloaded', info.version);
     });
 
     updater.on('error', (error) => {
@@ -725,6 +734,48 @@ async function createWindow(first = true): Promise<void> {
         return mainWindow?.webContents.session.clearCache();
     });
 
+    ipcMain.handle('app-check-for-updates', async () => {
+        if (disableAutoUpdates()) {
+            return { updateAvailable: false };
+        }
+
+        try {
+            const result = await autoUpdater.checkForUpdates();
+            const version = result?.updateInfo?.version;
+            const updateAvailable = Boolean(result?.isUpdateAvailable && version);
+
+            if (updateAvailable && version) {
+                mainWindow?.webContents.send('update-available', version);
+            }
+
+            return { updateAvailable, version: version || undefined };
+        } catch (error) {
+            log.error('Check for updates failed', error);
+            return { updateAvailable: false };
+        }
+    });
+
+    ipcMain.handle('app-download-update', async () => {
+        if (disableAutoUpdates()) {
+            return false;
+        }
+
+        autoUpdater.autoDownload = false;
+        autoUpdater.disableDifferentialDownload = false;
+        await autoUpdater.downloadUpdate();
+        return true;
+    });
+
+    ipcMain.handle('app-install-update', () => {
+        if (disableAutoUpdates()) {
+            return false;
+        }
+
+        autoUpdater.autoInstallOnAppQuit = true;
+        setImmediate(() => autoUpdater.quitAndInstall(false, true));
+        return true;
+    });
+
     ipcMain.on('app-restart', () => {
         // Fix for .AppImage
         if (process.env.APPIMAGE) {
@@ -808,6 +859,8 @@ async function createWindow(first = true): Promise<void> {
         log.info('Main window closed');
         ipcMain.removeHandler('window-clear-cache');
         ipcMain.removeHandler('app-check-for-updates');
+        ipcMain.removeHandler('app-download-update');
+        ipcMain.removeHandler('app-install-update');
         mainWindow = null;
     });
 
@@ -886,7 +939,7 @@ async function createWindow(first = true): Promise<void> {
             });
     });
 
-    if (!disableAutoUpdates()) {
+    if (!disableAutoUpdates() && store.get('disable_auto_updates') !== true) {
         new AppUpdater();
     }
 

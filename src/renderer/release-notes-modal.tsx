@@ -27,7 +27,8 @@ import { Stack } from '/@/shared/components/stack/stack';
 import { Text } from '/@/shared/components/text/text';
 import { useLocalStorage } from '/@/shared/hooks/use-local-storage';
 
-const GITHUB_COMPARE_URL = 'https://api.github.com/repos/jeffvli/feishin/compare';
+const GITHUB_COMPARE_URL = 'https://api.github.com/repos/A2Nzr21/KTM/compare';
+const GITHUB_RELEASES_PAGE = 'https://github.com/A2Nzr21/KTM/releases';
 
 interface GitHubCompareCommit {
     commit: {
@@ -89,14 +90,14 @@ const ReleaseNotesContent = ({ onDismiss, version }: ReleaseNotesContentProps) =
         enabled: isAlpha && !!latestStableRelease,
         queryFn: async () => {
             const base = latestStableRelease!.tag_name;
-            const head = 'development';
+            const head = 'main';
             const response = await axios.get<GitHubCompareResponse>(
                 `${GITHUB_COMPARE_URL}/${base}...${head}`,
                 { params: { per_page: 100 } },
             );
             return response.data;
         },
-        queryKey: ['github-compare', latestStableRelease?.tag_name, 'development'],
+        queryKey: ['github-compare', latestStableRelease?.tag_name, 'main'],
         retry: 2,
     });
 
@@ -108,10 +109,19 @@ const ReleaseNotesContent = ({ onDismiss, version }: ReleaseNotesContentProps) =
     } = useQuery({
         enabled: !isAlpha,
         queryFn: async () => {
-            const response = await axios.get<GitHubRelease>(
-                `${GITHUB_RELEASES_URL}/tags/${toTag(selectedVersion)}`,
-            );
-            return response.data;
+            try {
+                const response = await axios.get<GitHubRelease>(
+                    `${GITHUB_RELEASES_URL}/tags/${toTag(selectedVersion)}`,
+                );
+                return response.data;
+            } catch (error) {
+                if (axios.isAxiosError(error) && error.response?.status === 404) {
+                    const latest = await axios.get<GitHubRelease>(`${GITHUB_RELEASES_URL}/latest`);
+                    return latest.data;
+                }
+
+                throw error;
+            }
         },
         queryKey: ['github-release', selectedVersion],
         retry: 2,
@@ -190,14 +200,16 @@ const ReleaseNotesContent = ({ onDismiss, version }: ReleaseNotesContentProps) =
                         value={selectedVersion}
                     />
                 )}
-                <Text size="sm">{t('error.genericError')}</Text>
+                <Text isMuted size="sm">
+                    {t('page.releasenotes.noReleaseNotes')}
+                </Text>
                 <Group justify="flex-end">
                     <Button
                         component="a"
                         href={
                             showCompareError
-                                ? `https://github.com/jeffvli/feishin/compare/${latestStableRelease.tag_name}...${toTag(selectedVersion)}`
-                                : `https://github.com/jeffvli/feishin/releases/tag/${toTag(selectedVersion)}`
+                                ? `https://github.com/A2Nzr21/KTM/compare/${latestStableRelease.tag_name}...${toTag(selectedVersion)}`
+                                : GITHUB_RELEASES_PAGE
                         }
                         onClick={onDismiss}
                         rightSection={<Icon icon="externalLink" />}
@@ -230,7 +242,7 @@ const ReleaseNotesContent = ({ onDismiss, version }: ReleaseNotesContentProps) =
                 <Group justify="flex-end">
                     <Button
                         component="a"
-                        href={`https://github.com/jeffvli/feishin/releases/tag/${toTag(selectedVersion)}`}
+                        href={`https://github.com/A2Nzr21/KTM/releases/tag/${toTag(selectedVersion)}`}
                         onClick={onDismiss}
                         rightSection={<Icon icon="externalLink" />}
                         target="_blank"
@@ -248,7 +260,7 @@ const ReleaseNotesContent = ({ onDismiss, version }: ReleaseNotesContentProps) =
 
     if (isAlpha && compareData) {
         const commits = compareData.commits ?? [];
-        const compareUrl = `https://github.com/jeffvli/feishin/compare/${latestStableRelease?.tag_name}...development`;
+        const compareUrl = `https://github.com/A2Nzr21/KTM/compare/${latestStableRelease?.tag_name}...main`;
         return (
             <Stack gap="md">
                 {releaseOptions.length > 1 && (
@@ -355,7 +367,7 @@ const ReleaseNotesContent = ({ onDismiss, version }: ReleaseNotesContentProps) =
             <Group justify="flex-end">
                 <Button
                     component="a"
-                    href={`https://github.com/jeffvli/feishin/releases/tag/${toTag(selectedVersion)}`}
+                    href={`https://github.com/A2Nzr21/KTM/releases/tag/${toTag(selectedVersion)}`}
                     onClick={onDismiss}
                     rightSection={<Icon icon="externalLink" />}
                     target="_blank"

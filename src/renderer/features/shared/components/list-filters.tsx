@@ -45,13 +45,25 @@ export const ListFiltersModal = ({ isActive, itemType }: ListFiltersProps) => {
 
     const serverType = server.type;
 
-    const FilterComponent = FILTERS[serverType][itemType];
+    const FilterComponent = (FILTERS as Record<string, Record<string, any>>)[serverType]?.[
+        itemType
+    ];
 
     const [isOpen, handlers] = useDisclosure(false);
 
     const albumListFilters = useAlbumListFilters(pageKey as ItemListKey);
     const songListFilters = useSongListFilters(pageKey as ItemListKey);
     const clear = itemType === LibraryItem.ALBUM ? albumListFilters.clear : songListFilters.clear;
+
+    const canPin = Boolean(setIsSidebarOpen);
+
+    const disableArtistFilter = pageKey === ItemListKey.ALBUM_ARTIST_ALBUM;
+    const disableGenreFilter =
+        pageKey === ItemListKey.GENRE_ALBUM || pageKey === ItemListKey.GENRE_SONG;
+
+    if (!FilterComponent) {
+        return null;
+    }
 
     const handlePin = () => {
         setIsSidebarOpen?.(!isSidebarOpen);
@@ -60,12 +72,6 @@ export const ListFiltersModal = ({ isActive, itemType }: ListFiltersProps) => {
     const handleReset = () => {
         clear();
     };
-
-    const canPin = Boolean(setIsSidebarOpen);
-
-    const disableArtistFilter = pageKey === ItemListKey.ALBUM_ARTIST_ALBUM;
-    const disableGenreFilter =
-        pageKey === ItemListKey.GENRE_ALBUM || pageKey === ItemListKey.GENRE_SONG;
 
     return (
         <>
@@ -119,12 +125,18 @@ export const ListFiltersModal = ({ isActive, itemType }: ListFiltersProps) => {
 export const ListFilters = ({ itemType }: ListFiltersProps) => {
     const server = useCurrentServer();
     const serverType = server.type;
-    const FilterComponent = FILTERS[serverType][itemType];
+    const FilterComponent = (FILTERS as Record<string, Record<string, any>>)[serverType]?.[
+        itemType
+    ];
     const { pageKey } = useListContext();
 
     const disableArtistFilter = pageKey === ItemListKey.ALBUM_ARTIST_ALBUM;
     const disableGenreFilter =
         pageKey === ItemListKey.GENRE_ALBUM || pageKey === ItemListKey.GENRE_SONG;
+
+    if (!FilterComponent) {
+        return null;
+    }
 
     return (
         <ComponentErrorBoundary>

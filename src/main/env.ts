@@ -1,5 +1,5 @@
 export const disableAutoUpdates = () => {
-    return true;
+    return false;
 };
 
 export const isMacOS = () => {

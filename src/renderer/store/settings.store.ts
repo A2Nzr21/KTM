@@ -636,6 +636,7 @@ const LyricsDisplaySettingsSchema = z.object({
 
 const LyricsSettingsSchema = z.object({
     alignment: z.enum(['center', 'left', 'right']),
+    approximateKaraoke: z.boolean().optional(),
     delayMs: z.number(),
     enableAutoTranslation: z.boolean(),
     enableFurigana: z.boolean().optional(),
@@ -2055,6 +2056,7 @@ const initialState: SettingsState = {
     },
     lyrics: {
         alignment: 'left',
+        approximateKaraoke: true,
         delayMs: 0,
         enableAutoTranslation: false,
         enableFurigana: false,
@@ -2954,10 +2956,14 @@ export const useSettingsStore = createWithEqualityFn<SettingsSlice>()(
                     state.general.enableAnimations = 'all' as AnimationLevel;
                 }
 
+                if (version < 38) {
+                    state.lyrics.approximateKaraoke = true;
+                }
+
                 return persistedState;
             },
             name: 'store_settings',
-            version: 37,
+            version: 38,
         },
     ),
 );

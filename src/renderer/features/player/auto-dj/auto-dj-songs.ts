@@ -1,9 +1,12 @@
 import type { QueryClient } from '@tanstack/react-query';
 
+import { autoDjSongKey, getAutoDjSongBlocklist, pruneAutoDjSongs } from './auto-dj-history';
+import { autoDjGenreIdsForSongGenre } from './auto-dj-utils';
+
 import { queryKeys } from '/@/renderer/api/query-keys';
 import { songsQueries } from '/@/renderer/features/songs/api/songs-api';
 import { AUTO_DJ_STRATEGY, type AutoDJStrategy } from '/@/renderer/store/settings.store';
-import { shuffleInPlace } from '/@/renderer/utils/shuffle';
+import { shuffle } from '/@/renderer/utils/shuffle';
 import {
     Played,
     type QueueSong,
@@ -13,6 +16,13 @@ import {
     SortOrder,
 } from '/@/shared/types/domain-types';
 
+const SIMILAR_POOL_FACTOR = 6;
+const MIN_SIMILAR_POOL = 30;
+const GENRE_POOL_LIMIT = 200;
+const ARTIST_POOL_LIMIT = 120;
+const RANDOM_POOL_LIMIT = 200;
+const MAX_SEEDS = 3;
+
 export type AutoDjSongCollectArgs = {
     allowDuplicates: boolean;
     currentSong: QueueSong;
@@ -21,6 +31,9 @@ export type AutoDjSongCollectArgs = {
     onlySimilar: boolean;
     queryClient: QueryClient;
     queueSongIdSet: Set<string>;
+    queueSongKeySet: Set<string>;
+    runId: string;
+    seedSongIds: string[];
     server: null | ServerListItem | undefined;
     serverId: string;
     songStrategy: AutoDJStrategy;
@@ -38,140 +51,128 @@ export const runAutoDjSongs = async (args: AutoDjSongCollectArgs): Promise<Song[
     }
 };
 
-const isSongAvailable = (
-    song: Song,
-    allowDuplicates: boolean,
-    queueSongIdSet: Set<string>,
-    selectedSongIds: Set<string>,
-) => {
-    if (allowDuplicates) {
-        return true;
-    }
-
-    return !queueSongIdSet.has(song.id) && !selectedSongIds.has(song.id);
-};
-
 const collectSongsLibraryRandom = async (args: AutoDjSongCollectArgs): Promise<Song[]> => {
     const randomSongs = await args.queryClient.fetchQuery({
         ...songsQueries.random({
             query: {
-                limit: Math.max(args.itemCount * 3, 50),
+                limit: RANDOM_POOL_LIMIT,
                 played: Played.All,
             },
             serverId: args.serverId,
         }),
-        queryKey: queryKeys.player.fetch({ autoDjLibraryRandomSongs: args.currentSong.id }),
+        queryKey: queryKeys.player.fetch({
+            autoDjLibraryRandomSongs: args.currentSong.id,
+            run: args.runId,
+        }),
     });
 
-    const pool = randomSongs.items.filter(
-        (song) => args.allowDuplicates || !args.queueSongIdSet.has(song.id),
+    const history = getAutoDjSongBlocklist(args.serverId);
+    const pool = randomSongs.items.filter((song) =>
+        isSongAvailable(song, args, history, new Set(), new Set()),
     );
-    const shuffled = shuffleInPlace(pool);
-    return shuffled.slice(0, args.itemCount);
+
+    return shuffle(pool).slice(0, args.itemCount);
 };
 
 const collectSongsSimilar = async (args: AutoDjSongCollectArgs): Promise<Song[]> => {
+    const requested = Math.max(1, args.itemCount);
+    const similarPoolSize = Math.max(requested * SIMILAR_POOL_FACTOR, MIN_SIMILAR_POOL);
     const selected: Song[] = [];
-    const selectedSongIds = new Set<string>();
-    const remainingCount = () => args.itemCount - selected.length;
+    const selectedIds = new Set<string>();
+    const selectedKeys = new Set<string>();
+    const remainingCount = () => requested - selected.length;
+
+    let history = getAutoDjSongBlocklist(args.serverId);
+    const deferred: Song[] = [];
+
+    const addCandidates = (songs: Song[], cap: number) => {
+        let added = 0;
+
+        for (const song of shuffle(songs)) {
+            if (added >= cap || remainingCount() <= 0) {
+                break;
+            }
+
+            if (!isSongAvailable(song, args, history, selectedIds, selectedKeys)) {
+                if (!args.allowDuplicates) {
+                    deferred.push(song);
+                }
+                continue;
+            }
+
+            selectedIds.add(song.id);
+            selectedKeys.add(autoDjSongKey(song));
+            selected.push(song);
+            added += 1;
+        }
+    };
 
     if (args.trySimilarSongs) {
-        const similarSongs = await args.queryClient.fetchQuery({
-            ...songsQueries.similar({
-                query: {
-                    count: args.itemCount,
-                    songId: args.currentSong?.id,
-                },
-                serverId: args.serverId,
-            }),
-            queryKey: queryKeys.player.fetch({ similarSongs: args.currentSong?.id }),
-        });
+        const seedIds = Array.from(new Set([args.currentSong.id, ...args.seedSongIds])).slice(
+            0,
+            MAX_SEEDS,
+        );
 
-        const slotsToFill = remainingCount();
-        const shuffledSimilarSongs = shuffleInPlace(
-            similarSongs.filter((song) =>
-                isSongAvailable(song, args.allowDuplicates, args.queueSongIdSet, selectedSongIds),
+        const similarLists = await Promise.all(
+            seedIds.filter(Boolean).map((songId) =>
+                args.queryClient
+                    .fetchQuery({
+                        ...songsQueries.similar({
+                            query: { count: similarPoolSize, songId },
+                            serverId: args.serverId,
+                        }),
+                        queryKey: queryKeys.player.fetch({
+                            autoDjSimilar: songId,
+                            run: args.runId,
+                        }),
+                    })
+                    .catch(() => [] as Song[]),
             ),
         );
 
-        for (const song of shuffledSimilarSongs.slice(0, slotsToFill)) {
-            selectedSongIds.add(song.id);
-            selected.push(song);
-        }
+        const similarSongs = similarLists.flat().filter((song) => song.id !== args.currentSong.id);
+        addCandidates(similarSongs, Math.max(requested * 2, 10));
 
         if (args.onlySimilar && selected.length > 0) {
-            return selected;
+            return shuffle(selected).slice(0, requested);
         }
     }
 
-    if (remainingCount() > 0) {
-        const genre = args.currentSong?.genres?.[0];
+    if (remainingCount() > 0 && args.currentSong && args.server) {
+        const genres = (args.currentSong.genres ?? []).slice(0, 2);
 
-        if (genre) {
-            const genreLimit = 50;
-            const genreSimilarSongs = await args.queryClient.fetchQuery({
-                ...songsQueries.random({
-                    query: {
-                        genre: genre.id,
-                        limit: genreLimit,
-                        played: Played.All,
-                    },
-                    serverId: args.serverId,
-                }),
-                queryKey: queryKeys.player.fetch({
-                    genre,
-                    similarSongs: args.currentSong?.id,
-                }),
-            });
+        for (const genre of genres) {
+            const genreIds = autoDjGenreIdsForSongGenre(genre, args.server.type);
 
-            if (!args.trySimilarSongs) {
-                const randomSongCount = Math.max(1, Math.ceil(genreLimit * 0.2));
-
-                const randomSongs = await args.queryClient.fetchQuery({
+            const genreSongs = await args.queryClient
+                .fetchQuery({
                     ...songsQueries.random({
-                        query: { limit: randomSongCount, played: Played.All },
+                        query: {
+                            genre: genreIds[0],
+                            limit: GENRE_POOL_LIMIT,
+                            played: Played.All,
+                        },
                         serverId: args.serverId,
                     }),
-                });
+                    queryKey: queryKeys.player.fetch({
+                        autoDjGenre: genreIds,
+                        run: args.runId,
+                        song: args.currentSong.id,
+                    }),
+                })
+                .catch(() => null);
 
-                const spiceSlotsToFill = Math.min(randomSongCount, remainingCount());
-                const shuffledSpiceSongs = shuffleInPlace(
-                    randomSongs.items.filter((song) =>
-                        isSongAvailable(
-                            song,
-                            args.allowDuplicates,
-                            args.queueSongIdSet,
-                            selectedSongIds,
-                        ),
-                    ),
-                );
-
-                for (const song of shuffledSpiceSongs.slice(0, spiceSlotsToFill)) {
-                    selectedSongIds.add(song.id);
-                    selected.push(song);
-                }
+            if (genreSongs) {
+                addCandidates(genreSongs.items, GENRE_POOL_LIMIT);
             }
 
-            const genreSlotsToFill = remainingCount();
-            const shuffledGenreSongs = shuffleInPlace(
-                genreSimilarSongs.items.filter((song) =>
-                    isSongAvailable(
-                        song,
-                        args.allowDuplicates,
-                        args.queueSongIdSet,
-                        selectedSongIds,
-                    ),
-                ),
-            );
-
-            for (const song of shuffledGenreSongs.slice(0, genreSlotsToFill)) {
-                selectedSongIds.add(song.id);
-                selected.push(song);
+            if (remainingCount() <= 0) {
+                break;
             }
+        }
 
-            if (args.onlySimilar && selected.length > 0) {
-                return selected;
-            }
+        if (args.onlySimilar && selected.length > 0) {
+            return shuffle(selected).slice(0, requested);
         }
     }
 
@@ -179,66 +180,76 @@ const collectSongsSimilar = async (args: AutoDjSongCollectArgs): Promise<Song[]>
         const albumArtist = args.currentSong?.albumArtists?.[0];
 
         if (albumArtist) {
-            const albumArtistSimilarSongs = await args.queryClient.fetchQuery({
-                ...songsQueries.list({
-                    query: {
-                        albumArtistIds: [albumArtist.id],
-                        limit: 50,
-                        sortBy: SongListSort.RANDOM,
-                        sortOrder: SortOrder.ASC,
-                        startIndex: 0,
-                    },
-                    serverId: args.serverId,
-                }),
-                queryKey: queryKeys.player.fetch({
-                    albumArtist,
-                    similarSongs: args.currentSong?.id,
-                }),
-            });
+            const artistSongs = await args.queryClient
+                .fetchQuery({
+                    ...songsQueries.list({
+                        query: {
+                            albumArtistIds: [albumArtist.id],
+                            limit: ARTIST_POOL_LIMIT,
+                            sortBy: SongListSort.RANDOM,
+                            sortOrder: SortOrder.ASC,
+                            startIndex: 0,
+                        },
+                        serverId: args.serverId,
+                    }),
+                    queryKey: queryKeys.player.fetch({
+                        autoDjArtist: albumArtist.id,
+                        run: args.runId,
+                        song: args.currentSong.id,
+                    }),
+                })
+                .catch(() => null);
 
-            const artistSlotsToFill = remainingCount();
-            const shuffledArtistSongs = shuffleInPlace(
-                albumArtistSimilarSongs.items.filter((song) =>
-                    isSongAvailable(
-                        song,
-                        args.allowDuplicates,
-                        args.queueSongIdSet,
-                        selectedSongIds,
-                    ),
-                ),
-            );
-
-            for (const song of shuffledArtistSongs.slice(0, artistSlotsToFill)) {
-                selectedSongIds.add(song.id);
-                selected.push(song);
-            }
-
-            if (args.onlySimilar && selected.length > 0) {
-                return selected;
+            if (artistSongs) {
+                addCandidates(artistSongs.items, ARTIST_POOL_LIMIT);
             }
         }
     }
 
     if (remainingCount() > 0) {
-        const randomSongs = await args.queryClient.fetchQuery({
-            ...songsQueries.random({
-                query: { limit: 50, played: Played.All },
-                serverId: args.serverId,
-            }),
-        });
+        const randomSongs = await args.queryClient
+            .fetchQuery({
+                ...songsQueries.random({
+                    query: { limit: RANDOM_POOL_LIMIT, played: Played.All },
+                    serverId: args.serverId,
+                }),
+                queryKey: queryKeys.player.fetch({ autoDjRandom: args.runId }),
+            })
+            .catch(() => null);
 
-        const randomSlotsToFill = remainingCount();
-        const shuffledRandomSongs = shuffleInPlace(
-            randomSongs.items.filter((song) =>
-                isSongAvailable(song, args.allowDuplicates, args.queueSongIdSet, selectedSongIds),
-            ),
-        );
-
-        for (const song of shuffledRandomSongs.slice(0, randomSlotsToFill)) {
-            selectedSongIds.add(song.id);
-            selected.push(song);
+        if (randomSongs) {
+            addCandidates(randomSongs.items, RANDOM_POOL_LIMIT);
         }
     }
 
-    return selected;
+    if (remainingCount() > 0 && !args.allowDuplicates && deferred.length > 0) {
+        pruneAutoDjSongs(args.serverId);
+        history = getAutoDjSongBlocklist(args.serverId);
+        addCandidates(deferred, RANDOM_POOL_LIMIT);
+    }
+
+    return shuffle(selected).slice(0, requested);
+};
+
+const isSongAvailable = (
+    song: Song,
+    args: AutoDjSongCollectArgs,
+    history: { ids: Set<string>; keys: Set<string> },
+    selectedIds: Set<string>,
+    selectedKeys: Set<string>,
+): boolean => {
+    if (args.allowDuplicates) {
+        return true;
+    }
+
+    if (song.id === args.currentSong.id) {
+        return false;
+    }
+
+    if (args.queueSongIdSet.has(song.id) || selectedIds.has(song.id) || history.ids.has(song.id)) {
+        return false;
+    }
+
+    const key = autoDjSongKey(song);
+    return !args.queueSongKeySet.has(key) && !selectedKeys.has(key) && !history.keys.has(key);
 };

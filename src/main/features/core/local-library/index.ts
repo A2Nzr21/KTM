@@ -93,6 +93,39 @@ const LIBRARY_FILE = 'local-library.json';
 
 const getLibraryPath = () => join(app.getPath('userData'), LIBRARY_FILE);
 
+const getCoverCacheDir = () => join(app.getPath('userData'), 'local-covers');
+
+const writeEmbeddedCover = async (
+    key: string,
+    picture: { data: Uint8Array; format: string },
+): Promise<null | string> => {
+    if (picture.data.length > 12 * 1024 * 1024) {
+        return null;
+    }
+
+    const ext = picture.format.includes('png')
+        ? '.png'
+        : picture.format.includes('webp')
+          ? '.webp'
+          : '.jpg';
+    const file = join(getCoverCacheDir(), `${sha1(key).slice(0, 20)}${ext}`);
+
+    try {
+        await fs.access(file);
+        return file;
+    } catch {
+        // fall through
+    }
+
+    try {
+        await fs.mkdir(getCoverCacheDir(), { recursive: true });
+        await fs.writeFile(file, picture.data);
+        return file;
+    } catch {
+        return null;
+    }
+};
+
 let libraryData: LocalLibraryData = {
     albums: [],
     artists: [],
@@ -191,10 +224,16 @@ const scanFile = async (filePath: string, songs: LocalSong[]) => {
     let channels: null | number = null;
     let codec: null | string = null;
     let lyrics: null | string = null;
+    let embeddedPicture: null | { data: Uint8Array; format: string } = null;
 
     try {
         const meta = await parseFile(filePath, { duration: true });
         const common = meta.common;
+
+        const picture = common.picture?.[0];
+        if (picture?.data && picture.format) {
+            embeddedPicture = { data: picture.data, format: picture.format };
+        }
 
         if (meta.format.duration) {
             duration = Math.round(meta.format.duration);
@@ -264,6 +303,10 @@ const scanFile = async (filePath: string, songs: LocalSong[]) => {
         } catch {
             statCache.set(songDir, { cover: null, size: stat?.size ?? 0 });
         }
+    }
+
+    if (!cover.cover && embeddedPicture) {
+        cover.cover = await writeEmbeddedCover(albumId, embeddedPicture);
     }
 
     const imageUrl = cover?.cover ? `ktm://local/img/${encodeURIComponent(cover.cover)}` : null;

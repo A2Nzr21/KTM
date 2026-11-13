@@ -1,12 +1,40 @@
 appId: org.ktt.ktm
 productName: KTM
 artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+compression: maximum
 electronVersion: 43.7.0
 directories:
     buildResources: assets
 files:
     - 'out/**/*'
     - 'package.json'
+    - '!out/**/*.map'
+    - '!**/node_modules/react-icons/**'
+    - '!**/node_modules/butterchurn/**'
+    - '!**/node_modules/butterchurn-presets/**'
+    - '!**/node_modules/@mantine/core/**'
+    - '!**/node_modules/@mantine/dates/**'
+    - '!**/node_modules/@mantine/form/**'
+    - '!**/node_modules/@mantine/hooks/**'
+    - '!**/node_modules/react-dom/**'
+    - '!**/node_modules/react-router/**'
+    - '!**/node_modules/react-player/**'
+    - '!**/node_modules/react-i18next/**'
+    - '!**/node_modules/react-window/**'
+    - '!**/node_modules/@tanstack/react-query/**'
+    - '!**/node_modules/overlayscrollbars/**'
+    - '!**/node_modules/dompurify/**'
+    - '!**/node_modules/wavesurfer.js/**'
+    - '!**/node_modules/fast-xml-parser/**'
+    - '!**/node_modules/dayjs/**'
+    - '!**/node_modules/immer/**'
+    - '!**/node_modules/motion/**'
+    - '!**/node_modules/framer-motion/**'
+    - '!**/node_modules/@atlaskit/pragmatic-drag-and-drop/**'
+    - '!**/node_modules/@atlaskit/pragmatic-drag-and-drop-auto-scroll/**'
+    - '!**/node_modules/@atlaskit/pragmatic-drag-and-drop-hitbox/**'
+    - '!**/node_modules/icecast-metadata-stats/**'
+    - '!**/node_modules/qs/**'
 extraResources:
     - assets/**
 asarUnpack:
@@ -72,7 +100,7 @@ afterPack: scripts/trim-locales.mjs
 afterAllArtifactBuild: scripts/after-all-artifact-build.mjs
 publish:
     provider: github
-    owner: jeffvli
-    repo: feishin
+    owner: A2Nzr21
+    repo: KTM
     channel: latest
-    releaseType: draft
+    releaseType: release

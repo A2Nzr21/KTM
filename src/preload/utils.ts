@@ -108,6 +108,24 @@ const checkForUpdates = (): Promise<{ updateAvailable: boolean; version?: string
     return ipcRenderer.invoke('app-check-for-updates');
 };
 
+const downloadUpdate = (): Promise<boolean> => {
+    return ipcRenderer.invoke('app-download-update');
+};
+
+const installUpdate = (): Promise<boolean> => {
+    return ipcRenderer.invoke('app-install-update');
+};
+
+const rendererUpdateDownloadProgress = (
+    cb: (progress: { percent: number; total: number; transferred: number }) => void,
+) => {
+    ipcRenderer.on('update-download-progress', (_, progress) => cb(progress));
+};
+
+const rendererUpdateDownloaded = (cb: (version: string) => void) => {
+    ipcRenderer.on('update-downloaded', (_, version) => cb(version));
+};
+
 const startPowerSaveBlocker = (full: boolean) => {
     return ipcRenderer.invoke('power-save-blocker-start', { full });
 };
@@ -176,9 +194,11 @@ export const utils = {
     customCssUpdatedListener,
     disableAutoUpdates,
     download,
+    downloadUpdate,
     exportDiagnostics,
     forceGarbageCollection,
     getCustomCss,
+    installUpdate,
     isLinux,
     isMacOS,
     isWindows,
@@ -200,6 +220,8 @@ export const utils = {
     rendererTogglePrivateMode,
     rendererToggleSidebar,
     rendererUpdateAvailable,
+    rendererUpdateDownloaded,
+    rendererUpdateDownloadProgress,
     saveCustomCss,
     separator: isWindows() ? '\\' : '/',
     setInputFocused,

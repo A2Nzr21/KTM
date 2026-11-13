@@ -38,11 +38,11 @@ export const ListSortByDropdown = ({
     target,
 }: ListSortByDropdownProps) => {
     const server = useCurrentServer();
+    const filters = (itemType && FILTERS[itemType]?.[server.type]) || [];
 
     const { setSortBy, sortBy } = useSortByFilter(defaultSortByValue, listKey);
 
-    const sortByLabel =
-        (itemType && FILTERS[itemType][server.type].find((f) => f.value === sortBy)?.name) || '—';
+    const sortByLabel = filters.find((f) => f.value === sortBy)?.name || '—';
 
     const handleSortByChange = (sortBy: string) => {
         setSortBy(sortBy);
@@ -61,7 +61,7 @@ export const ListSortByDropdown = ({
                 )}
             </DropdownMenu.Target>
             <DropdownMenu.Dropdown>
-                {FILTERS[itemType][server.type].map((f) => (
+                {filters.map((f) => (
                     <DropdownMenu.Item
                         isSelected={f.value === sortBy}
                         key={`filter-${f.name}`}
@@ -975,14 +975,185 @@ const RADIO_LIST_FILTERS: Partial<
     ],
 };
 
+const LOCAL_ALBUM_FILTERS = [
+    {
+        defaultOrder: SortOrder.ASC,
+        name: i18n.t('filter.albumArtist'),
+        value: AlbumListSort.ALBUM_ARTIST,
+    },
+    {
+        defaultOrder: SortOrder.ASC,
+        name: i18n.t('filter.id'),
+        value: AlbumListSort.ID,
+    },
+    {
+        defaultOrder: SortOrder.DESC,
+        name: i18n.t('filter.duration'),
+        value: AlbumListSort.DURATION,
+    },
+    {
+        defaultOrder: SortOrder.ASC,
+        name: i18n.t('filter.name'),
+        value: AlbumListSort.NAME,
+    },
+    {
+        defaultOrder: SortOrder.DESC,
+        name: i18n.t('filter.playCount'),
+        value: AlbumListSort.PLAY_COUNT,
+    },
+    {
+        defaultOrder: SortOrder.DESC,
+        name: i18n.t('filter.recentlyAdded'),
+        value: AlbumListSort.RECENTLY_ADDED,
+    },
+    {
+        defaultOrder: SortOrder.DESC,
+        name: i18n.t('filter.releaseYear'),
+        value: AlbumListSort.YEAR,
+    },
+    {
+        defaultOrder: SortOrder.DESC,
+        name: i18n.t('filter.songCount'),
+        value: AlbumListSort.SONG_COUNT,
+    },
+];
+
+const LOCAL_SONG_FILTERS = [
+    {
+        defaultOrder: SortOrder.ASC,
+        name: i18n.t('filter.album'),
+        value: SongListSort.ALBUM,
+    },
+    {
+        defaultOrder: SortOrder.ASC,
+        name: i18n.t('filter.albumArtist'),
+        value: SongListSort.ALBUM_ARTIST,
+    },
+    {
+        defaultOrder: SortOrder.ASC,
+        name: i18n.t('filter.artist'),
+        value: SongListSort.ARTIST,
+    },
+    {
+        defaultOrder: SortOrder.DESC,
+        name: i18n.t('filter.duration'),
+        value: SongListSort.DURATION,
+    },
+    {
+        defaultOrder: SortOrder.ASC,
+        name: i18n.t('filter.name'),
+        value: SongListSort.NAME,
+    },
+    {
+        defaultOrder: SortOrder.DESC,
+        name: i18n.t('filter.playCount'),
+        value: SongListSort.PLAY_COUNT,
+    },
+    {
+        defaultOrder: SortOrder.DESC,
+        name: i18n.t('filter.releaseYear'),
+        value: SongListSort.RELEASE_YEAR,
+    },
+    {
+        defaultOrder: SortOrder.ASC,
+        name: i18n.t('filter.sortName'),
+        value: SongListSort.SORT_NAME,
+    },
+    {
+        defaultOrder: SortOrder.DESC,
+        name: i18n.t('filter.year'),
+        value: SongListSort.YEAR,
+    },
+];
+
+const LOCAL_FOLDER_FILTERS = [
+    {
+        defaultOrder: SortOrder.ASC,
+        name: i18n.t('filter.id'),
+        value: SongListSort.ID,
+    },
+    ...LOCAL_SONG_FILTERS,
+];
+
+const LOCAL_ALBUM_ARTIST_FILTERS = [
+    {
+        defaultOrder: SortOrder.DESC,
+        name: i18n.t('filter.albumCount'),
+        value: AlbumArtistListSort.ALBUM_COUNT,
+    },
+    {
+        defaultOrder: SortOrder.ASC,
+        name: i18n.t('filter.name'),
+        value: AlbumArtistListSort.NAME,
+    },
+    {
+        defaultOrder: SortOrder.DESC,
+        name: i18n.t('filter.songCount'),
+        value: AlbumArtistListSort.SONG_COUNT,
+    },
+];
+
+const LOCAL_ARTIST_FILTERS = [
+    {
+        defaultOrder: SortOrder.DESC,
+        name: i18n.t('filter.albumCount'),
+        value: ArtistListSort.ALBUM_COUNT,
+    },
+    {
+        defaultOrder: SortOrder.ASC,
+        name: i18n.t('filter.name'),
+        value: ArtistListSort.NAME,
+    },
+    {
+        defaultOrder: SortOrder.DESC,
+        name: i18n.t('filter.songCount'),
+        value: ArtistListSort.SONG_COUNT,
+    },
+];
+
+const LOCAL_GENRE_FILTERS = [
+    {
+        defaultOrder: SortOrder.ASC,
+        name: i18n.t('filter.name'),
+        value: GenreListSort.NAME,
+    },
+];
+
 const FILTERS: Partial<Record<LibraryItem, any>> = {
-    [LibraryItem.ALBUM]: ALBUM_LIST_FILTERS,
-    [LibraryItem.ALBUM_ARTIST]: ALBUM_ARTIST_LIST_FILTERS,
-    [LibraryItem.ARTIST]: ARTIST_LIST_FILTERS,
-    [LibraryItem.FOLDER]: FOLDER_LIST_FILTERS,
-    [LibraryItem.GENRE]: GENRE_LIST_FILTERS,
-    [LibraryItem.PLAYLIST]: PLAYLIST_LIST_FILTERS,
-    [LibraryItem.PLAYLIST_SONG]: PLAYLIST_SONG_LIST_FILTERS,
-    [LibraryItem.RADIO_STATION]: RADIO_LIST_FILTERS,
-    [LibraryItem.SONG]: SONG_LIST_FILTERS,
+    [LibraryItem.ALBUM]: {
+        ...ALBUM_LIST_FILTERS,
+        [ServerType.LOCAL]: LOCAL_ALBUM_FILTERS,
+    },
+    [LibraryItem.ALBUM_ARTIST]: {
+        ...ALBUM_ARTIST_LIST_FILTERS,
+        [ServerType.LOCAL]: LOCAL_ALBUM_ARTIST_FILTERS,
+    },
+    [LibraryItem.ARTIST]: {
+        ...ARTIST_LIST_FILTERS,
+        [ServerType.LOCAL]: LOCAL_ARTIST_FILTERS,
+    },
+    [LibraryItem.FOLDER]: {
+        ...FOLDER_LIST_FILTERS,
+        [ServerType.LOCAL]: LOCAL_FOLDER_FILTERS,
+    },
+    [LibraryItem.GENRE]: {
+        ...GENRE_LIST_FILTERS,
+        [ServerType.LOCAL]: LOCAL_GENRE_FILTERS,
+    },
+    [LibraryItem.PLAYLIST]: {
+        ...PLAYLIST_LIST_FILTERS,
+        [ServerType.LOCAL]: [],
+    },
+    [LibraryItem.PLAYLIST_SONG]: {
+        ...PLAYLIST_SONG_LIST_FILTERS,
+        [ServerType.LOCAL]: CLIENT_SIDE_SONG_FILTERS,
+    },
+    [LibraryItem.RADIO_STATION]: {
+        ...RADIO_LIST_FILTERS,
+        [ServerType.LOCAL]: [],
+    },
+    [LibraryItem.SONG]: {
+        ...SONG_LIST_FILTERS,
+        [ServerType.LOCAL]: LOCAL_SONG_FILTERS,
+    },
 };

@@ -22,6 +22,7 @@ import {
     getOverlayLayerKey,
     lyricsHasWordCues,
 } from '/@/renderer/features/lyrics/api/lyrics-utils';
+import { synthesizeWordCues } from '/@/renderer/features/lyrics/api/synthesize-word-cues';
 import { openLyricsExportModal } from '/@/renderer/features/lyrics/components/lyrics-export-form';
 import {
     useFuriganaLyrics,
@@ -64,6 +65,7 @@ export const Lyrics = ({ fadeOutNoLyricsMessage = true, settingsKey = 'default' 
     const isLyricsDisabled = isRadioActive;
 
     const {
+        approximateKaraoke,
         delayMs,
         enableAutoTranslation,
         enableFurigana,
@@ -182,6 +184,28 @@ export const Lyrics = ({ fadeOutNoLyricsMessage = true, settingsKey = 'default' 
         return lyrics;
     }, [enableFurigana, isLyricsDisabled, lyrics, furiganaConvertedLyrics]);
 
+    const renderLyrics = useMemo(() => {
+        if (
+            approximateKaraoke === false ||
+            !synced ||
+            !displayLyrics ||
+            !('lyrics' in displayLyrics) ||
+            !Array.isArray(displayLyrics.lyrics)
+        ) {
+            return displayLyrics;
+        }
+
+        const synthesized = synthesizeWordCues(displayLyrics.lyrics, {
+            endMs: currentSong?.duration ? currentSong.duration * 1000 : null,
+        });
+
+        if (!synthesized) {
+            return displayLyrics;
+        }
+
+        return { ...displayLyrics, lyrics: synthesized };
+    }, [approximateKaraoke, currentSong, displayLyrics, synced]);
+
     const currentOffsetMs = useMemo(() => {
         if (!data) return 0;
         return getDisplayOffset(lyrics, data.selectedOffsetMs, indexToUse, data.local, delayMs);
@@ -271,20 +295,20 @@ export const Lyrics = ({ fadeOutNoLyricsMessage = true, settingsKey = 'default' 
     );
 
     const isKaraoke = useMemo(() => {
-        if (!synced || !displayLyrics || !('lyrics' in displayLyrics)) {
+        if (!synced || !renderLyrics || !('lyrics' in renderLyrics)) {
             return false;
         }
 
-        return Array.isArray(displayLyrics.lyrics) && lyricsHasWordCues(displayLyrics.lyrics);
-    }, [displayLyrics, synced]);
+        return Array.isArray(renderLyrics.lyrics) && lyricsHasWordCues(renderLyrics.lyrics);
+    }, [renderLyrics, synced]);
 
     const syncedLyricsProps = useMemo(() => {
-        if (!displayLyrics) {
+        if (!renderLyrics) {
             return null;
         }
 
         return {
-            ...(displayLyrics as SynchronizedLyricsProps),
+            ...(renderLyrics as SynchronizedLyricsProps),
             extraOverlayLyrics: isKaraoke ? extraOverlayLyrics : undefined,
             offsetMs: displayOffsetMs,
             pronunciationLyrics: pronunciationLyricsOverlay,
@@ -299,12 +323,12 @@ export const Lyrics = ({ fadeOutNoLyricsMessage = true, settingsKey = 'default' 
             translationLyrics: translationLyricsOverlay,
         };
     }, [
-        displayLyrics,
         displayOffsetMs,
         enableRomaji,
         extraOverlayLyrics,
         isKaraoke,
         pronunciationLyricsOverlay,
+        renderLyrics,
         romajiConvertedLyrics,
         shouldGenerateSyncedRomaji,
         syncedRomajiLyrics,

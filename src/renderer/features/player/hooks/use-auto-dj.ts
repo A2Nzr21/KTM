@@ -1,8 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 import { eventEmitter } from '/@/renderer/events/event-emitter';
 import { runAutoDjAlbumIds } from '/@/renderer/features/player/auto-dj/auto-dj-albums';
+import {
+    autoDjSongKey,
+    rememberAutoDjAlbums,
+    rememberAutoDjSongs,
+} from '/@/renderer/features/player/auto-dj/auto-dj-history';
 import { runAutoDjSongs } from '/@/renderer/features/player/auto-dj/auto-dj-songs';
 import { useIsPlayerFetching, usePlayer } from '/@/renderer/features/player/context/player-context';
 import {
@@ -12,7 +17,6 @@ import {
     useAutoDJSettings,
     useCurrentServer,
     useCurrentServerId,
-    usePlayerStore,
     usePlayerStoreBase,
     useSettingsStore,
 } from '/@/renderer/store';
@@ -29,6 +33,8 @@ export const useAutoDJ = () => {
     const player = usePlayer();
     const settings = useAutoDJSettings();
     const isFetching = useIsPlayerFetching();
+    const runningRef = useRef(false);
+    const lastRunEndRef = useRef(0);
 
     const hasSimilarSongsMusicFolder = hasFeature(server, ServerFeature.SIMILAR_SONGS_MUSIC_FOLDER);
 
@@ -70,8 +76,32 @@ export const useAutoDJ = () => {
                     songName: properties.song?.name,
                 });
 
+                if (runningRef.current) {
+                    return;
+                }
+
+                const now = Date.now();
+                if (now - lastRunEndRef.current < 3000) {
+                    return;
+                }
+
+                runningRef.current = true;
+
                 try {
-                    const queue = usePlayerStore.getState().getQueue();
+                    const playerState = usePlayerStoreBase.getState();
+                    const queue = playerState.getQueue();
+                    const runId = `${now}-${Math.random().toString(36).slice(2)}`;
+                    const queueIndex = isShuffleEnabled(playerState)
+                        ? mapShuffledToQueueIndex(
+                              playerState.player.index,
+                              playerState.queue.shuffled,
+                          )
+                        : playerState.player.index;
+                    const seedSongIds = queue.items
+                        .slice(Math.max(0, queueIndex - 2), queueIndex + 1)
+                        .map((item) => item.id)
+                        .reverse();
+                    const queueSongKeySet = new Set(queue.items.map((item) => autoDjSongKey(item)));
 
                     const hasMusicFolder = server?.musicFolderId && server.musicFolderId.length > 0;
                     const musicFolderId =
@@ -85,6 +115,8 @@ export const useAutoDJ = () => {
                         musicFolderId,
                         onlySimilar: settings.onlySimilar,
                         queryClient,
+                        runId,
+                        seedSongIds,
                         server,
                         serverId,
                         trySimilarSongs,
@@ -109,6 +141,8 @@ export const useAutoDJ = () => {
                         });
 
                         if (albumsToAdd.length > 0) {
+                            rememberAutoDjAlbums(serverId, albumsToAdd);
+
                             await player.addToQueueByFetch(
                                 serverId,
                                 albumsToAdd,
@@ -134,10 +168,13 @@ export const useAutoDJ = () => {
                         ...runnerDepsBase,
                         currentSong: properties.song,
                         queueSongIdSet,
+                        queueSongKeySet,
                         songStrategy,
                     });
 
                     if (songsToAdd.length > 0) {
+                        rememberAutoDjSongs(serverId, [properties.song, ...songsToAdd]);
+
                         player.addToQueueByData(songsToAdd, Play.LAST);
 
                         eventEmitter.emit('AUTODJ_QUEUE_ADDED', {
@@ -149,6 +186,9 @@ export const useAutoDJ = () => {
                         error: (error as Error).message,
                         songId: properties.song?.id,
                     });
+                } finally {
+                    runningRef.current = false;
+                    lastRunEndRef.current = Date.now();
                 }
             },
             {

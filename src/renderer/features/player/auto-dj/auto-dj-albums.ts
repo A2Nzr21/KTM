@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 
+import { getAutoDjAlbumBlocklist, pruneAutoDjAlbums } from './auto-dj-history';
 import { autoDjGenreIdsForSongGenre } from './auto-dj-utils';
 
 import { queryKeys } from '/@/renderer/api/query-keys';
@@ -14,6 +15,13 @@ import {
     SortOrder,
 } from '/@/shared/types/domain-types';
 
+const SIMILAR_POOL_FACTOR = 6;
+const MIN_SIMILAR_POOL = 30;
+const GENRE_POOL_LIMIT = 150;
+const ARTIST_POOL_LIMIT = 100;
+const RANDOM_POOL_LIMIT = 150;
+const MAX_SEEDS = 3;
+
 export type AutoDjAlbumCollectArgs = {
     albumStrategy: AutoDJStrategy;
     allowDuplicates: boolean;
@@ -23,6 +31,8 @@ export type AutoDjAlbumCollectArgs = {
     onlySimilar: boolean;
     queryClient: QueryClient;
     queueAlbumIdSet: Set<string>;
+    runId: string;
+    seedSongIds: string[];
     server: null | ServerListItem | undefined;
     serverId: string;
     trySimilarSongs: boolean;
@@ -39,24 +49,11 @@ export const runAutoDjAlbumIds = async (args: AutoDjAlbumCollectArgs): Promise<s
     }
 };
 
-const isAlbumIdAvailable = (
-    albumId: string,
-    allowDuplicates: boolean,
-    queueAlbumIdSet: Set<string>,
-    selectedAlbumIdSet: Set<string>,
-) => {
-    if (allowDuplicates) {
-        return true;
-    }
-
-    return !queueAlbumIdSet.has(albumId) && !selectedAlbumIdSet.has(albumId);
-};
-
 const collectAlbumsLibraryRandom = async (args: AutoDjAlbumCollectArgs): Promise<string[]> => {
     const page = await args.queryClient.fetchQuery({
         ...albumQueries.list({
             query: {
-                limit: Math.max(args.itemCount, 1),
+                limit: RANDOM_POOL_LIMIT,
                 musicFolderId: args.musicFolderId,
                 sortBy: AlbumListSort.RANDOM,
                 sortOrder: SortOrder.ASC,
@@ -64,95 +61,127 @@ const collectAlbumsLibraryRandom = async (args: AutoDjAlbumCollectArgs): Promise
             },
             serverId: args.serverId,
         }),
-        queryKey: queryKeys.player.fetch({ autoDjAlbumLibraryRandom: args.currentSong?.id }),
+        queryKey: queryKeys.player.fetch({
+            autoDjAlbumLibraryRandom: args.currentSong?.id,
+            run: args.runId,
+        }),
     });
 
-    const ids = page.items
-        .map((album) => album.id)
-        .filter(
-            (albumId) => albumId && (args.allowDuplicates || !args.queueAlbumIdSet.has(albumId)),
-        );
-    return shuffle(ids).slice(0, args.itemCount);
+    const history = getAutoDjAlbumBlocklist(args.serverId);
+    const selected = new Set<string>();
+    const ids: string[] = [];
+
+    for (const album of shuffle(page.items)) {
+        const albumId = album.id;
+
+        if (
+            !albumId ||
+            (!args.allowDuplicates &&
+                (args.queueAlbumIdSet.has(albumId) ||
+                    history.has(albumId) ||
+                    selected.has(albumId)))
+        ) {
+            continue;
+        }
+
+        selected.add(albumId);
+        ids.push(albumId);
+
+        if (ids.length >= args.itemCount) {
+            break;
+        }
+    }
+
+    return ids;
 };
 
 const collectAlbumsSimilar = async (args: AutoDjAlbumCollectArgs): Promise<string[]> => {
-    const selectedAlbumIds: string[] = [];
-    const selectedAlbumIdSet = new Set<string>();
-    const remainingCount = () => args.itemCount - selectedAlbumIds.length;
+    const requested = Math.max(1, args.itemCount);
+    const similarPoolSize = Math.max(requested * SIMILAR_POOL_FACTOR, MIN_SIMILAR_POOL);
+    const selected: string[] = [];
+    const selectedIds = new Set<string>();
+    const remainingCount = () => requested - selected.length;
+
+    let history = getAutoDjAlbumBlocklist(args.serverId);
+    const deferred: string[] = [];
+
+    const addCandidates = (albumIds: string[], cap: number) => {
+        let added = 0;
+
+        for (const albumId of shuffle(albumIds)) {
+            if (added >= cap || remainingCount() <= 0) {
+                break;
+            }
+
+            if (!albumId || albumId === args.currentSong.albumId) {
+                continue;
+            }
+
+            if (
+                !args.allowDuplicates &&
+                (args.queueAlbumIdSet.has(albumId) ||
+                    history.has(albumId) ||
+                    selectedIds.has(albumId))
+            ) {
+                if (!args.queueAlbumIdSet.has(albumId) && !selectedIds.has(albumId)) {
+                    deferred.push(albumId);
+                }
+                continue;
+            }
+
+            selectedIds.add(albumId);
+            selected.push(albumId);
+            added += 1;
+        }
+    };
 
     if (args.trySimilarSongs && args.currentSong?.id) {
-        const similarSongsFromSimilarApi = await args.queryClient.fetchQuery({
-            ...songsQueries.similar({
-                query: {
-                    count: args.itemCount * 4,
-                    songId: args.currentSong.id,
-                },
-                serverId: args.serverId,
-            }),
-            queryKey: queryKeys.player.fetch({
-                similarSongAlbumDj: args.currentSong.id,
-            }),
-        });
-
-        const similarSlotsToFill = remainingCount();
-        const shuffledSimilarAlbumIds = shuffle(
-            similarSongsFromSimilarApi
-                .map((song) => song.albumId)
-                .filter((albumId): albumId is string => {
-                    if (!albumId) {
-                        return false;
-                    }
-
-                    return isAlbumIdAvailable(
-                        albumId,
-                        args.allowDuplicates,
-                        args.queueAlbumIdSet,
-                        selectedAlbumIdSet,
-                    );
-                }),
+        const seedIds = Array.from(new Set([args.currentSong.id, ...args.seedSongIds])).slice(
+            0,
+            MAX_SEEDS,
         );
 
-        for (const albumId of shuffledSimilarAlbumIds.slice(0, similarSlotsToFill)) {
-            selectedAlbumIdSet.add(albumId);
-            selectedAlbumIds.push(albumId);
-        }
+        const similarLists = await Promise.all(
+            seedIds.filter(Boolean).map((songId) =>
+                args.queryClient
+                    .fetchQuery({
+                        ...songsQueries.similar({
+                            query: { count: similarPoolSize, songId },
+                            serverId: args.serverId,
+                        }),
+                        queryKey: queryKeys.player.fetch({
+                            autoDjSimilarSongAlbum: songId,
+                            run: args.runId,
+                        }),
+                    })
+                    .catch(() => []),
+            ),
+        );
 
-        if (args.onlySimilar && selectedAlbumIds.length > 0) {
-            return selectedAlbumIds;
+        const albumIds = similarLists
+            .flat()
+            .map((song) => song.albumId)
+            .filter((albumId): albumId is string => Boolean(albumId));
+
+        addCandidates(albumIds, Math.max(requested * 2, 10));
+
+        if (args.onlySimilar && selected.length > 0) {
+            return shuffle(selected).slice(0, requested);
         }
     }
 
     if (remainingCount() > 0 && args.currentSong && args.server) {
-        const genre = args.currentSong.genres?.[0];
+        const genres = (args.currentSong.genres ?? []).slice(0, 2);
 
-        if (genre) {
+        for (const genre of genres) {
             const genreIds = autoDjGenreIdsForSongGenre(genre, args.server.type);
-            const genreLimit = 50;
 
-            const genreAlbums = await args.queryClient.fetchQuery({
-                ...albumQueries.list({
-                    query: {
-                        genreIds,
-                        limit: genreLimit,
-                        musicFolderId: args.musicFolderId,
-                        sortBy: AlbumListSort.RANDOM,
-                        sortOrder: SortOrder.ASC,
-                        startIndex: 0,
-                    },
-                    serverId: args.serverId,
-                }),
-                queryKey: queryKeys.player.fetch({
-                    genreAlbumDj: genreIds,
-                    song: args.currentSong.id,
-                }),
-            });
-
-            if (!args.trySimilarSongs) {
-                const randomAlbumMixCount = Math.max(1, Math.ceil(genreLimit * 0.2));
-                const randomAlbumsMix = await args.queryClient.fetchQuery({
+            const genreAlbums = await args.queryClient
+                .fetchQuery({
                     ...albumQueries.list({
                         query: {
-                            limit: randomAlbumMixCount,
+                            genreIds,
+                            limit: GENRE_POOL_LIMIT,
                             musicFolderId: args.musicFolderId,
                             sortBy: AlbumListSort.RANDOM,
                             sortOrder: SortOrder.ASC,
@@ -161,68 +190,70 @@ const collectAlbumsSimilar = async (args: AutoDjAlbumCollectArgs): Promise<strin
                         serverId: args.serverId,
                     }),
                     queryKey: queryKeys.player.fetch({
-                        genreAlbumDjMixRandom: args.currentSong.id,
+                        autoDjGenreAlbum: genreIds,
+                        run: args.runId,
+                        song: args.currentSong.id,
                     }),
-                });
+                })
+                .catch(() => null);
 
-                const spiceSlotsToFill = Math.min(randomAlbumMixCount, remainingCount());
-                const shuffledSpiceAlbumIds = shuffle(
-                    randomAlbumsMix.items
-                        .map((album) => album.id)
-                        .filter(
-                            (albumId): albumId is string =>
-                                Boolean(albumId) &&
-                                isAlbumIdAvailable(
-                                    albumId,
-                                    args.allowDuplicates,
-                                    args.queueAlbumIdSet,
-                                    selectedAlbumIdSet,
-                                ),
-                        ),
+            if (genreAlbums) {
+                addCandidates(
+                    genreAlbums.items.map((album) => album.id),
+                    GENRE_POOL_LIMIT,
                 );
-
-                for (const albumId of shuffledSpiceAlbumIds.slice(0, spiceSlotsToFill)) {
-                    selectedAlbumIdSet.add(albumId);
-                    selectedAlbumIds.push(albumId);
-                }
             }
 
-            const genreSlotsToFill = remainingCount();
-            const shuffledGenreAlbumIds = shuffle(
-                genreAlbums.items
-                    .map((album) => album.id)
-                    .filter(
-                        (albumId): albumId is string =>
-                            Boolean(albumId) &&
-                            isAlbumIdAvailable(
-                                albumId,
-                                args.allowDuplicates,
-                                args.queueAlbumIdSet,
-                                selectedAlbumIdSet,
-                            ),
-                    ),
-            );
-
-            for (const albumId of shuffledGenreAlbumIds.slice(0, genreSlotsToFill)) {
-                selectedAlbumIdSet.add(albumId);
-                selectedAlbumIds.push(albumId);
+            if (remainingCount() <= 0) {
+                break;
             }
+        }
 
-            if (args.onlySimilar && selectedAlbumIds.length > 0) {
-                return selectedAlbumIds;
-            }
+        if (args.onlySimilar && selected.length > 0) {
+            return shuffle(selected).slice(0, requested);
         }
     }
 
     if (remainingCount() > 0 && args.currentSong) {
-        const albumArtist = args.currentSong.albumArtists?.[0];
+        const albumArtist = args.currentSong?.albumArtists?.[0];
 
         if (albumArtist) {
-            const albumsByArtist = await args.queryClient.fetchQuery({
+            const albumsByArtist = await args.queryClient
+                .fetchQuery({
+                    ...albumQueries.list({
+                        query: {
+                            artistIds: [albumArtist.id],
+                            limit: ARTIST_POOL_LIMIT,
+                            musicFolderId: args.musicFolderId,
+                            sortBy: AlbumListSort.RANDOM,
+                            sortOrder: SortOrder.ASC,
+                            startIndex: 0,
+                        },
+                        serverId: args.serverId,
+                    }),
+                    queryKey: queryKeys.player.fetch({
+                        autoDjArtistAlbum: albumArtist.id,
+                        run: args.runId,
+                        song: args.currentSong.id,
+                    }),
+                })
+                .catch(() => null);
+
+            if (albumsByArtist) {
+                addCandidates(
+                    albumsByArtist.items.map((album) => album.id),
+                    ARTIST_POOL_LIMIT,
+                );
+            }
+        }
+    }
+
+    if (remainingCount() > 0) {
+        const randomAlbums = await args.queryClient
+            .fetchQuery({
                 ...albumQueries.list({
                     query: {
-                        artistIds: [albumArtist.id],
-                        limit: 50,
+                        limit: RANDOM_POOL_LIMIT,
                         musicFolderId: args.musicFolderId,
                         sortBy: AlbumListSort.RANDOM,
                         sortOrder: SortOrder.ASC,
@@ -230,77 +261,23 @@ const collectAlbumsSimilar = async (args: AutoDjAlbumCollectArgs): Promise<strin
                     },
                     serverId: args.serverId,
                 }),
-                queryKey: queryKeys.player.fetch({
-                    artistAlbumDj: albumArtist.id,
-                    song: args.currentSong.id,
-                }),
-            });
+                queryKey: queryKeys.player.fetch({ autoDjRandomAlbum: args.runId }),
+            })
+            .catch(() => null);
 
-            const artistSlotsToFill = remainingCount();
-            const shuffledArtistAlbumIds = shuffle(
-                albumsByArtist.items
-                    .map((album) => album.id)
-                    .filter(
-                        (albumId): albumId is string =>
-                            Boolean(albumId) &&
-                            isAlbumIdAvailable(
-                                albumId,
-                                args.allowDuplicates,
-                                args.queueAlbumIdSet,
-                                selectedAlbumIdSet,
-                            ),
-                    ),
+        if (randomAlbums) {
+            addCandidates(
+                randomAlbums.items.map((album) => album.id),
+                RANDOM_POOL_LIMIT,
             );
-
-            for (const albumId of shuffledArtistAlbumIds.slice(0, artistSlotsToFill)) {
-                selectedAlbumIdSet.add(albumId);
-                selectedAlbumIds.push(albumId);
-            }
-
-            if (args.onlySimilar && selectedAlbumIds.length > 0) {
-                return selectedAlbumIds;
-            }
         }
     }
 
-    if (remainingCount() > 0 && args.currentSong) {
-        const randomAlbumsFallback = await args.queryClient.fetchQuery({
-            ...albumQueries.list({
-                query: {
-                    limit: 80,
-                    musicFolderId: args.musicFolderId,
-                    sortBy: AlbumListSort.RANDOM,
-                    sortOrder: SortOrder.ASC,
-                    startIndex: 0,
-                },
-                serverId: args.serverId,
-            }),
-            queryKey: queryKeys.player.fetch({
-                fallbackAlbumDj: args.currentSong.id,
-            }),
-        });
-
-        const randomSlotsToFill = remainingCount();
-        const shuffledRandomAlbumIds = shuffle(
-            randomAlbumsFallback.items
-                .map((album) => album.id)
-                .filter(
-                    (albumId): albumId is string =>
-                        Boolean(albumId) &&
-                        isAlbumIdAvailable(
-                            albumId,
-                            args.allowDuplicates,
-                            args.queueAlbumIdSet,
-                            selectedAlbumIdSet,
-                        ),
-                ),
-        );
-
-        for (const albumId of shuffledRandomAlbumIds.slice(0, randomSlotsToFill)) {
-            selectedAlbumIdSet.add(albumId);
-            selectedAlbumIds.push(albumId);
-        }
+    if (remainingCount() > 0 && !args.allowDuplicates && deferred.length > 0) {
+        pruneAutoDjAlbums(args.serverId);
+        history = getAutoDjAlbumBlocklist(args.serverId);
+        addCandidates(deferred, RANDOM_POOL_LIMIT);
     }
 
-    return selectedAlbumIds;
+    return shuffle(selected).slice(0, requested);
 };

@@ -48,6 +48,19 @@ export const LyricSettings = memo(() => {
         {
             control: (
                 <Switch
+                    aria-label="Karaoke word highlight"
+                    defaultChecked={settings.approximateKaraoke !== false}
+                    onChange={(e) => updateSetting({ approximateKaraoke: e.currentTarget.checked })}
+                />
+            ),
+            description: t('setting.approximateKaraoke', {
+                context: 'description',
+            }),
+            title: t('setting.approximateKaraoke'),
+        },
+        {
+            control: (
+                <Switch
                     aria-label="Prefer local lyrics"
                     defaultChecked={settings.preferLocalLyrics}
                     onChange={(e) => updateSetting({ preferLocalLyrics: e.currentTarget.checked })}
