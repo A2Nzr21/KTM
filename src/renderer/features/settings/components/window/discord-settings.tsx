@@ -51,29 +51,6 @@ export const DiscordSettings = memo(() => {
         },
         {
             control: (
-                <TextInput
-                    defaultValue={settings.clientId}
-                    onBlur={(e) => {
-                        setSettings({
-                            discord: {
-                                clientId: e.currentTarget.value,
-                            },
-                        });
-                    }}
-                />
-            ),
-            description: t('setting.discordApplicationId', {
-                context: 'description',
-                defaultId: 'your Discord application ID',
-                discord: 'Discord',
-            }),
-            isHidden: !isElectron(),
-            title: t('setting.discordApplicationId', {
-                discord: 'Discord',
-            }),
-        },
-        {
-            control: (
                 <Switch
                     checked={settings.showPaused}
                     onChange={(e) => {

@@ -60,6 +60,49 @@ export const LyricSettings = memo(() => {
         },
         {
             control: (
+                <Select
+                    aria-label="Lyrics visual style"
+                    data={[
+                        {
+                            label: t('setting.lyricsVisualStyle', {
+                                context: 'optionDynamic',
+                            }),
+                            value: 'dynamic',
+                        },
+                        {
+                            label: t('setting.lyricsVisualStyle', {
+                                context: 'optionNeon',
+                            }),
+                            value: 'neon',
+                        },
+                    ]}
+                    onChange={(value) => {
+                        if (!value) return;
+                        updateSetting({ visualStyle: value as 'dynamic' | 'neon' });
+                    }}
+                    value={settings.visualStyle ?? 'dynamic'}
+                />
+            ),
+            description: t('setting.lyricsVisualStyle', {
+                context: 'description',
+            }),
+            title: t('setting.lyricsVisualStyle'),
+        },
+        {
+            control: (
+                <Switch
+                    aria-label="Lyrics performance mode"
+                    defaultChecked={settings.performanceMode === true}
+                    onChange={(e) => updateSetting({ performanceMode: e.currentTarget.checked })}
+                />
+            ),
+            description: t('setting.lyricsPerformanceMode', {
+                context: 'description',
+            }),
+            title: t('setting.lyricsPerformanceMode'),
+        },
+        {
+            control: (
                 <Switch
                     aria-label="Prefer local lyrics"
                     defaultChecked={settings.preferLocalLyrics}

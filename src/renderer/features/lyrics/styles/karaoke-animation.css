@@ -222,3 +222,73 @@
 .karaoke-word.lyrics-word-animating.lyrics-word-paused .karaoke-word-highlight {
     animation-play-state: paused;
 }
+
+@keyframes karaoke-word-glow-neon {
+    0% {
+        text-shadow: 0 0 4px rgb(from var(--theme-colors-primary) r g b / 0%);
+    }
+
+    15% {
+        text-shadow: 0 0 7px rgb(from var(--theme-colors-primary) r g b / 55%);
+    }
+
+    60% {
+        text-shadow: 0 0 7px rgb(from var(--theme-colors-primary) r g b / 55%);
+    }
+
+    100% {
+        text-shadow: 0 0 4px rgb(from var(--theme-colors-primary) r g b / 0%);
+    }
+}
+
+.synchronized-karaoke-lyrics.lyrics-style-neon .karaoke-word-highlight {
+    background-image: linear-gradient(
+        90deg,
+        var(--theme-colors-primary) calc(100% * var(--lyric-transition-amount-start)),
+        #0000 calc(100% * var(--lyric-transition-amount-end) + 1px)
+    );
+}
+
+.synchronized-karaoke-lyrics.lyrics-style-neon .karaoke-word.karaoke-rtl .karaoke-word-highlight {
+    background-image: linear-gradient(
+        270deg,
+        var(--theme-colors-primary) calc(100% * var(--lyric-transition-amount-start)),
+        #0000 calc(100% * var(--lyric-transition-amount-end) + 1px)
+    );
+}
+
+.synchronized-karaoke-lyrics.lyrics-style-neon
+    .karaoke-word.lyrics-word-animating:not(.karaoke-overlay-word)
+    .karaoke-word-highlight {
+    animation-name: karaoke-word-glow-neon;
+}
+
+.synchronized-karaoke-lyrics.lyrics-style-neon :is(.karaoke-line, .lyric-line).lyrics-line-active {
+    text-shadow: 0 0 8px rgb(from var(--theme-colors-primary) r g b / 55%);
+}
+
+.synchronized-karaoke-lyrics.lyrics-performance :is(.karaoke-line, .lyric-line).lyrics-line-active {
+    text-shadow: none;
+}
+
+.synchronized-karaoke-lyrics.lyrics-performance .karaoke-word.lyrics-word-animating:not(.karaoke-overlay-word) {
+    animation: none !important;
+    will-change: auto;
+}
+
+.synchronized-karaoke-lyrics.lyrics-performance .karaoke-word-highlight {
+    color: var(--theme-colors-foreground) !important;
+    background-image: none !important;
+    transition: opacity 0.15s linear !important;
+    will-change: opacity;
+}
+
+.synchronized-karaoke-lyrics.lyrics-performance.lyrics-style-neon .karaoke-word-highlight {
+    color: var(--theme-colors-primary) !important;
+}
+
+.synchronized-karaoke-lyrics.lyrics-performance
+    .karaoke-word.lyrics-word-animating:not(.karaoke-overlay-word)
+    .karaoke-word-highlight {
+    animation: none !important;
+}

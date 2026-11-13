@@ -646,6 +646,7 @@ const LyricsSettingsSchema = z.object({
     follow: z.boolean(),
     followScrollAlignment: z.number(),
     lineLeadTimeMs: z.number(),
+    performanceMode: z.boolean().optional(),
     preferLocalLyrics: z.boolean(),
     showMatch: z.boolean(),
     showProvider: z.boolean(),
@@ -653,6 +654,7 @@ const LyricsSettingsSchema = z.object({
     translationApiKey: z.string(),
     translationApiProvider: z.string().nullable(),
     translationTargetLanguage: z.string().nullable(),
+    visualStyle: z.enum(['dynamic', 'neon']).optional(),
 });
 
 const ScrobbleSettingsSchema = z.object({
@@ -2066,6 +2068,7 @@ const initialState: SettingsState = {
         follow: true,
         followScrollAlignment: 0,
         lineLeadTimeMs: 800,
+        performanceMode: false,
         preferLocalLyrics: true,
         showMatch: false,
         showProvider: false,
@@ -2073,6 +2076,7 @@ const initialState: SettingsState = {
         translationApiKey: '',
         translationApiProvider: '',
         translationTargetLanguage: 'en',
+        visualStyle: 'dynamic',
     },
     lyricsDisplay: {
         default: {
@@ -2960,10 +2964,15 @@ export const useSettingsStore = createWithEqualityFn<SettingsSlice>()(
                     state.lyrics.approximateKaraoke = true;
                 }
 
+                if (version < 39) {
+                    state.lyrics.performanceMode = false;
+                    state.lyrics.visualStyle = 'dynamic';
+                }
+
                 return persistedState;
             },
             name: 'store_settings',
-            version: 38,
+            version: 39,
         },
     ),
 );

@@ -388,6 +388,49 @@ export const LyricsSettingsForm = ({ settingsKey }: LyricsSettingsFormProps) => 
     const lyricOptions = [
         {
             component: (
+                <SegmentedControl
+                    data={[
+                        {
+                            label: t('setting.lyricsVisualStyle', {
+                                context: 'optionDynamic',
+                            }),
+                            value: 'dynamic',
+                        },
+                        {
+                            label: t('setting.lyricsVisualStyle', {
+                                context: 'optionNeon',
+                            }),
+                            value: 'neon',
+                        },
+                    ]}
+                    onChange={(value) =>
+                        updateLyricsSetting({ visualStyle: value as 'dynamic' | 'neon' })
+                    }
+                    value={lyricsSettings.visualStyle ?? 'dynamic'}
+                    w="100%"
+                />
+            ),
+            description: t('setting.lyricsVisualStyle', {
+                context: 'description',
+            }),
+            id: 'visualStyle',
+            label: t('setting.lyricsVisualStyle'),
+        },
+        {
+            component: (
+                <ListConfigBooleanControl
+                    onChange={(value) => updateLyricsSetting({ performanceMode: value })}
+                    value={lyricsSettings.performanceMode === true}
+                />
+            ),
+            description: t('setting.lyricsPerformanceMode', {
+                context: 'description',
+            }),
+            id: 'performanceMode',
+            label: t('setting.lyricsPerformanceMode'),
+        },
+        {
+            component: (
                 <NumberInput
                     defaultValue={lyricsSettings.delayMs}
                     onBlur={(e) => {

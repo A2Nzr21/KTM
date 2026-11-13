@@ -34,6 +34,7 @@ export interface SynchronizedKaraokeLyricsProps extends Omit<FullLyricsMetadata,
     extraOverlayLyrics?: SynchronizedLyricsData[];
     lyrics: SynchronizedLyricsData;
     offsetMs?: number;
+    performanceMode?: boolean;
     preview?: boolean;
     pronunciationLyrics?: null | SynchronizedLyricsData;
     romajiLyrics?: null | SynchronizedLyricsData;
@@ -42,6 +43,7 @@ export interface SynchronizedKaraokeLyricsProps extends Omit<FullLyricsMetadata,
     syncedRomajiLyrics?: null | SyncedRomajiLyrics;
     translatedLyrics?: null | string;
     translationLyrics?: null | SynchronizedLyricsData;
+    visualStyle?: 'dynamic' | 'neon';
 }
 
 const SEEK_DETECT_THRESHOLD_MS = 500;
@@ -55,6 +57,7 @@ export const SynchronizedKaraokeLyrics = ({
     lyrics,
     name,
     offsetMs,
+    performanceMode = false,
     preview = false,
     pronunciationLyrics,
     romajiLyrics,
@@ -64,6 +67,7 @@ export const SynchronizedKaraokeLyrics = ({
     syncedRomajiLyrics,
     translatedLyrics,
     translationLyrics,
+    visualStyle = 'dynamic',
 }: SynchronizedKaraokeLyricsProps) => {
     const {
         containerRef,
@@ -88,6 +92,7 @@ export const SynchronizedKaraokeLyrics = ({
 
     const normalizedLyrics = useMemo(() => normalizeLyrics(lyrics), [lyrics]);
     const rafRef = useRef<null | number>(null);
+    const lastTickAtRef = useRef(0);
     const statusRef = useRef(usePlayerStoreBase.getState().player.status);
     const lastSyncedTimeRef = useRef(0);
     const playbackAnchorRef = useRef({
@@ -191,16 +196,20 @@ export const SynchronizedKaraokeLyrics = ({
 
             const anchor = playbackAnchorRef.current;
             const timeInMs = anchor.timeMs + delayMsRef.current;
+            const now = performance.now();
 
-            syncAtTime(timeInMs, true, {
-                eventCreationTime: anchor.eventCreationTime,
-            });
+            if (!performanceMode || now - lastTickAtRef.current >= 33) {
+                lastTickAtRef.current = now;
+                syncAtTime(timeInMs, true, {
+                    eventCreationTime: anchor.eventCreationTime,
+                });
+            }
 
             rafRef.current = requestAnimationFrame(runTick);
         };
 
         rafRef.current = requestAnimationFrame(runTick);
-    }, [delayMsRef, stopRaf, syncAtTime]);
+    }, [delayMsRef, performanceMode, stopRaf, syncAtTime]);
 
     const syncFromCurrentTimestamp = useCallback(() => {
         const timestamp = useTimestampStoreBase.getState().timestamp;
@@ -340,6 +349,8 @@ export const SynchronizedKaraokeLyrics = ({
             className={clsx(
                 styles.container,
                 preview && styles.preview,
+                performanceMode && 'lyrics-performance',
+                visualStyle === 'neon' && 'lyrics-style-neon',
                 'synchronized-karaoke-lyrics overlay-scrollbar',
             )}
             id={LYRICS_SCROLL_CONTAINER_ID}

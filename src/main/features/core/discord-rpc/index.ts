@@ -3,11 +3,11 @@ import { ipcMain } from 'electron';
 
 import log from '/@/main/logger';
 
-const KTM_DISCORD_APPLICATION_ID = '';
+const KTM_DISCORD_APPLICATION_ID = '1561604545803718716';
 let client: Client | null = null;
 
-const createClient = async (clientId?: string) => {
-    const effectiveId = clientId || KTM_DISCORD_APPLICATION_ID;
+const createClient = async () => {
+    const effectiveId = KTM_DISCORD_APPLICATION_ID;
 
     if (!effectiveId) {
         log.warn(
@@ -54,9 +54,9 @@ const quit = () => {
     }
 };
 
-ipcMain.handle('discord-rpc-initialize', async (_event, clientId?: string) => {
+ipcMain.handle('discord-rpc-initialize', async () => {
     try {
-        await createClient(clientId);
+        await createClient();
         log.info('Discord RPC initialized');
     } catch (error) {
         log.error('Discord RPC initialize failed', error);

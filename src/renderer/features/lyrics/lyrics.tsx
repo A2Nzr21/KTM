@@ -70,10 +70,12 @@ export const Lyrics = ({ fadeOutNoLyricsMessage = true, settingsKey = 'default' 
         enableAutoTranslation,
         enableFurigana,
         enableRomaji,
+        performanceMode,
         preferLocalLyrics,
         translationApiKey,
         translationApiProvider,
         translationTargetLanguage,
+        visualStyle,
     } = useLyricsSettings();
     const { t } = useTranslation();
     const [index, setIndexState] = useState(0);
@@ -575,6 +577,8 @@ export const Lyrics = ({ fadeOutNoLyricsMessage = true, settingsKey = 'default' 
                                         <SynchronizedKaraokeLyrics
                                             {...syncedLyricsProps}
                                             agents={selectedAgents}
+                                            performanceMode={performanceMode === true}
+                                            visualStyle={visualStyle ?? 'dynamic'}
                                         />
                                     ) : (
                                         <SynchronizedLyrics {...syncedLyricsProps} />
