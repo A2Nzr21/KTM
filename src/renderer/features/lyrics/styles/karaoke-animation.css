@@ -12,6 +12,7 @@
 }
 
 .synchronized-karaoke-lyrics :is(.karaoke-line, .lyric-line).lyrics-line-active {
+    text-shadow: 0 0 6px rgb(from var(--theme-colors-foreground) r g b / 30%);
     opacity: 1 !important;
 }
 
@@ -167,4 +168,57 @@
 
 .karaoke-word ruby rp {
     display: none;
+}
+
+@keyframes karaoke-word-pop {
+    0% {
+        scale: 0.95;
+        translate: 0 0.01em;
+    }
+
+    70% {
+        scale: 1.0505;
+        translate: 0 -0.0167em;
+    }
+
+    100% {
+        scale: 1;
+        translate: 0 0;
+    }
+}
+
+@keyframes karaoke-word-glow {
+    0% {
+        text-shadow: 0 0 4px rgb(from var(--theme-colors-foreground) r g b / 0%);
+    }
+
+    15% {
+        text-shadow: 0 0 6px rgb(from var(--theme-colors-foreground) r g b / 35%);
+    }
+
+    60% {
+        text-shadow: 0 0 6px rgb(from var(--theme-colors-foreground) r g b / 35%);
+    }
+
+    100% {
+        text-shadow: 0 0 4px rgb(from var(--theme-colors-foreground) r g b / 0%);
+    }
+}
+
+.karaoke-word.lyrics-word-animating:not(.karaoke-overlay-word) {
+    transform-origin: center center;
+    animation: karaoke-word-pop var(--karaoke-duration, 1ms) linear
+        var(--karaoke-anim-delay, 0s) both;
+    will-change: scale, translate;
+}
+
+.karaoke-word.lyrics-word-animating:not(.karaoke-overlay-word) .karaoke-word-highlight {
+    animation: karaoke-word-glow var(--karaoke-duration, 1ms) linear
+        var(--karaoke-anim-delay, 0s) both;
+}
+
+
+.karaoke-word.lyrics-word-animating.lyrics-word-paused,
+.karaoke-word.lyrics-word-animating.lyrics-word-paused .karaoke-word-highlight {
+    animation-play-state: paused;
 }
