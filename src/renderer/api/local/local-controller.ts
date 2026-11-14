@@ -4,6 +4,7 @@ import {
     AlbumArtistListSort,
     AlbumListSort,
     AuthenticationResponse,
+    Folder,
     Genre,
     InternalControllerEndpoint,
     LibraryItem,
@@ -17,9 +18,18 @@ import {
     UserInfoResponse,
 } from '/@/shared/types/domain-types';
 
+const folderName = (path: string) => path.split(/[\\/]/).filter(Boolean).pop() ?? path;
+
+const parentFolderPath = (path: string) => {
+    const segments = path.split(/[\\/]/).filter(Boolean);
+    segments.pop();
+    return segments.join(path.includes('\\') ? '\\' : '/');
+};
+
 type LocalAlbumRow = {
     artistName: string;
     duration: number;
+    genreIds: string[];
     genreNames: string[];
     id: string;
     imageUrl: null | string;
@@ -58,6 +68,8 @@ type LocalSongRow = {
     codec: null | string;
     discNumber: number;
     duration: number;
+    folderPath: string;
+    genreIds: string[];
     genreNames: string[];
     id: string;
     imageUrl: null | string;
@@ -198,7 +210,9 @@ const toSong = (row: LocalSongRow, serverId: string): Song => ({
     explicitStatus: null,
     folderId: null,
     gain: null,
-    genres: [],
+    genres: (row.genreIds ?? []).map((id, index) =>
+        toGenre({ id, name: row.genreNames?.[index] ?? '' }, serverId),
+    ),
     id: row.id,
     imageId: null,
     imageUrl: row.imageUrl,
@@ -258,7 +272,9 @@ const toAlbum = (row: LocalAlbumRow, serverId: string): Album => ({
     duration: row.duration * 1000,
     explicitStatus: null,
     gain: null,
-    genres: [],
+    genres: (row.genreIds ?? []).map((id, index) =>
+        toGenre({ id, name: row.genreNames?.[index] ?? '' }, serverId),
+    ),
     id: row.id,
     imageId: null,
     imageUrl: row.imageUrl,
@@ -496,7 +512,7 @@ export const LocalController: InternalControllerEndpoint = {
 
         if (query?.genreIds?.length) {
             const wanted = new Set(query.genreIds);
-            rows = rows.filter((a) => a.genreNames.some((g) => wanted.has(g)));
+            rows = rows.filter((a) => a.genreIds?.some((g) => wanted.has(g)));
         }
 
         if (query?.minYear) {
@@ -521,9 +537,18 @@ export const LocalController: InternalControllerEndpoint = {
             query?.limit,
         );
     },
-    getAlbumListCount: async () => {
+    getAlbumListCount: async (args) => {
         const library = await getLibrary();
-        return library.albums.length;
+        const { query } = args as ReplaceApiClientProps<any>;
+
+        let rows = library.albums;
+
+        if (query?.genreIds?.length) {
+            const wanted = new Set(query.genreIds);
+            rows = rows.filter((a) => a.genreIds?.some((g) => wanted.has(g)));
+        }
+
+        return rows.length;
     },
     getAlbumRadio: async () => [],
     getArtistList: async (args) => {
@@ -563,8 +588,132 @@ export const LocalController: InternalControllerEndpoint = {
             totalRecordCount: favorites.length,
         };
     },
-    getFolder: async () => {
-        throw new Error('Folder view is not supported for local songs');
+    getFolder: async ({ apiClientProps, query }) => {
+        const library = await getLibrary();
+        const serverId = apiClientProps.serverId;
+
+        const toFolder = (
+            name: string,
+            id: string,
+            parentId: string,
+            imageUrl: null | string,
+        ): Folder => ({
+            _itemType: LibraryItem.FOLDER,
+            _serverId: serverId,
+            _serverType: ServerType.LOCAL,
+            children: { folders: [], songs: [] },
+            id,
+            imageId: null,
+            imageUrl,
+            name,
+            parentId,
+        });
+
+        const nodeById = new Map<string, Folder>();
+
+        for (const folderPath of library.folders) {
+            nodeById.set(folderPath, toFolder(folderName(folderPath), folderPath, '0', null));
+        }
+
+        const songFolderIds = new Set<string>();
+
+        for (const song of library.songs) {
+            if (song.folderPath) {
+                songFolderIds.add(song.folderPath);
+            }
+        }
+
+        for (const folderId of songFolderIds) {
+            if (!nodeById.has(folderId)) {
+                nodeById.set(folderId, toFolder(folderName(folderId), folderId, '0', null));
+            }
+        }
+
+        for (const node of nodeById.values()) {
+            const parent = nodeById.get(parentFolderPath(node.id));
+            if (parent && parent.id !== node.id) {
+                node.parentId = parent.id;
+            }
+        }
+
+        const searchTerm = query.searchTerm?.toLowerCase();
+        const sortOrder = query.sortOrder === SortOrder.DESC ? -1 : 1;
+
+        for (const song of library.songs) {
+            if (searchTerm && !song.name.toLowerCase().includes(searchTerm)) {
+                continue;
+            }
+
+            const parent = nodeById.get(song.folderPath ?? '');
+            if (parent) {
+                parent.children?.songs.push(toSong(song, serverId));
+            }
+        }
+
+        const searchTermLower = searchTerm;
+        const sortBy = query.sortBy ?? SongListSort.NAME;
+
+        const songSortValue = (song: Song) => {
+            switch (sortBy) {
+                case SongListSort.ALBUM:
+                    return song.album ?? '';
+                case SongListSort.ARTIST:
+                    return song.artistName;
+                case SongListSort.DURATION:
+                    return song.duration;
+                case SongListSort.ID:
+                    return song.id;
+                case SongListSort.YEAR:
+                    return song.year ?? 0;
+                default:
+                    return song.name;
+            }
+        };
+
+        for (const node of nodeById.values()) {
+            const songs = node.children?.songs ?? [];
+
+            songs.sort((a, b) => {
+                const aValue = songSortValue(a);
+                const bValue = songSortValue(b);
+                const comparison =
+                    typeof aValue === 'number' && typeof bValue === 'number'
+                        ? aValue - bValue
+                        : String(aValue).localeCompare(String(bValue));
+                return (
+                    sortOrder * comparison ||
+                    a.discNumber - b.discNumber ||
+                    a.trackNumber - b.trackNumber
+                );
+            });
+        }
+
+        const childrenFolders = (node: Folder) => {
+            const children = [...nodeById.values()].filter(
+                (candidate) =>
+                    candidate.parentId === node.id &&
+                    candidate.id !== node.id &&
+                    (!searchTermLower || candidate.name.toLowerCase().includes(searchTermLower)),
+            );
+
+            return children.sort((a, b) => sortOrder * a.name.localeCompare(b.name));
+        };
+
+        const isRootFolder = query.id === '0' || !query.id;
+
+        if (isRootFolder) {
+            const rootFolder = toFolder(library.folders[0] ?? 'Music', '0', '', null);
+            rootFolder.children = { folders: childrenFolders(rootFolder), songs: [] };
+            return rootFolder;
+        }
+
+        const target = nodeById.get(query.id);
+        if (!target) {
+            throw new Error('Folder not found');
+        }
+
+        target.children = { folders: childrenFolders(target), songs: target.children?.songs ?? [] };
+        return target;
     },
     getGenreList: async ({ apiClientProps }) => {
         const library = await getLibrary();
@@ -629,7 +778,7 @@ export const LocalController: InternalControllerEndpoint = {
         let rows = library.songs;
 
         if (query?.genre) {
-            rows = rows.filter((s) => s.genreNames.includes(query.genre as string));
+            rows = rows.filter((s) => s.genreIds?.includes(query.genre as string));
         }
 
         return {
@@ -711,7 +860,7 @@ export const LocalController: InternalControllerEndpoint = {
 
         if (query?.genreIds?.length) {
             const wanted = new Set(query.genreIds);
-            rows = rows.filter((s) => s.genreNames.some((g) => wanted.has(g)));
+            rows = rows.filter((s) => s.genreIds?.some((g) => wanted.has(g)));
         }
 
         if (query?.favorite) {
@@ -760,6 +909,11 @@ export const LocalController: InternalControllerEndpoint = {
 
         if (query?.favorite) {
             rows = rows.filter((s) => s.userFavorite);
+        }
+
+        if (query?.genreIds?.length) {
+            const wanted = new Set(query.genreIds);
+            rows = rows.filter((s) => s.genreIds?.some((g) => wanted.has(g)));
         }
 
         return rows.length;

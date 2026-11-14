@@ -33,9 +33,12 @@ const artistIdFor = (name: string) => `loc-ar-${sha1(name.toLowerCase()).slice(0
 const albumIdFor = (artistName: string, albumName: string) =>
     `loc-al-${sha1(`${artistName.toLowerCase()}::${albumName.toLowerCase()}`).slice(0, 16)}`;
 
+const genreIdFor = (name: string) => `loc-g-${sha1(name).slice(0, 12)}`;
+
 type LocalAlbum = {
     artistName: string;
     duration: number;
+    genreIds: string[];
     genreNames: string[];
     id: string;
     imageUrl: null | string;
@@ -75,6 +78,7 @@ type LocalSong = {
     discNumber: number;
     duration: number;
     folderPath: string;
+    genreIds: string[];
     genreNames: string[];
     id: string;
     imageUrl: null | string;
@@ -149,7 +153,14 @@ const loadLibrary = async () => {
             scanning: false,
             songs: Array.isArray(parsed.songs) ? parsed.songs : [],
         };
-    } catch {
+        log.info('local-library: loaded', {
+            bytes: raw.length,
+            path: getLibraryPath(),
+            scannedAt: libraryData.scannedAt,
+            songs: libraryData.songs.length,
+        });
+    } catch (error) {
+        log.error('local-library: load failed', { error, path: getLibraryPath() });
         libraryData = {
             albums: [],
             artists: [],
@@ -162,13 +173,25 @@ const loadLibrary = async () => {
     }
 };
 
-const saveLibrary = async () => {
+const persistLibrary = async () => {
     try {
         await fs.mkdir(app.getPath('userData'), { recursive: true });
-        await fs.writeFile(getLibraryPath(), JSON.stringify(libraryData), 'utf8');
+
+        const libraryPath = getLibraryPath();
+        const tempPath = `${libraryPath}.tmp`;
+
+        await fs.writeFile(tempPath, JSON.stringify(libraryData), 'utf8');
+        await fs.rename(tempPath, libraryPath);
     } catch (error) {
         log.error('local-library: failed to save library', error);
     }
+};
+
+let saveQueue = Promise.resolve();
+
+const saveLibrary = () => {
+    saveQueue = saveQueue.then(persistLibrary, persistLibrary);
+    return saveQueue;
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -230,6 +253,11 @@ const scanFile = async (filePath: string, songs: LocalSong[]) => {
         const meta = await parseFile(filePath, { duration: true });
         const common = meta.common;
 
+        if (!meta.format.container && !meta.format.codec && !meta.format.duration) {
+            log.warn('Local scan skipped file without audio metadata', { path: filePath });
+            return;
+        }
+
         const picture = common.picture?.[0];
         if (picture?.data && picture.format) {
             embeddedPicture = { data: picture.data, format: picture.format };
@@ -273,7 +301,8 @@ const scanFile = async (filePath: string, songs: LocalSong[]) => {
             lyrics = common.lyrics.join('\n');
         }
     } catch {
-        artistName = 'Unknown Artist';
+        log.warn('Local scan skipped unreadable file', { path: filePath });
+        return;
     }
 
     const songDir = dirname(filePath);
@@ -322,6 +351,7 @@ const scanFile = async (filePath: string, songs: LocalSong[]) => {
         discNumber,
         duration,
         folderPath: songDir,
+        genreIds: genreNames.map(genreIdFor),
         genreNames,
         id: songId,
         imageUrl,
@@ -349,6 +379,7 @@ const buildAggregates = (songs: LocalSong[]) => {
             albums.set(albumId, {
                 artistName: song.albumArtistName,
                 duration: 0,
+                genreIds: [],
                 genreNames: [],
                 id: albumId,
                 imageUrl: song.imageUrl,
@@ -373,6 +404,7 @@ const buildAggregates = (songs: LocalSong[]) => {
         for (const genre of song.genreNames) {
             if (!album.genreNames.includes(genre)) {
                 album.genreNames.push(genre);
+                album.genreIds.push(genreIdFor(genre));
             }
         }
 
@@ -393,7 +425,7 @@ const buildAggregates = (songs: LocalSong[]) => {
 
         for (const genre of song.genreNames) {
             if (!genres.has(genre)) {
-                genres.set(genre, { id: `loc-g-${sha1(genre).slice(0, 12)}`, name: genre });
+                genres.set(genre, { id: genreIdFor(genre), name: genre });
             }
         }
     }
@@ -646,7 +678,7 @@ const registerIpc = () => {
 
 registerIpc();
 
-void loadLibrary();
+void app.whenReady().then(loadLibrary);
 
 export const getLibrarySnapshot = () => libraryData;
 
