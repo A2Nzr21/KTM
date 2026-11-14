@@ -539,7 +539,7 @@ const isKnownCoverPath = (imgPath: string) => {
 
     const normalizedPath = normalize(imgPath);
 
-    if (normalize(getCoverCacheDir()).startsWith(normalizedPath)) {
+    if (normalizedPath.startsWith(normalize(getCoverCacheDir()) + sep)) {
         return true;
     }
 

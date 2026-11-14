@@ -85,14 +85,22 @@ type LocalSongRow = {
 };
 
 let albumImageById = new Map<string, null | string>();
+let libraryCache: LocalLibrarySnapshot = {
+    albums: [],
+    artists: [],
+    folders: [],
+    genres: [],
+    scannedAt: null,
+    scanning: false,
+    songs: [],
+};
 
 const getLibrary = async (): Promise<LocalLibraryData> => {
     const data = (await window.api.localLibrary.getLibrary()) as LocalLibraryData | undefined;
 
     if (!data) {
         albumImageById = new Map();
-
-        return {
+        libraryCache = {
             albums: [],
             artists: [],
             folders: [],
@@ -101,9 +109,12 @@ const getLibrary = async (): Promise<LocalLibraryData> => {
             scanning: false,
             songs: [],
         };
+
+        return libraryCache;
     }
 
     albumImageById = new Map(data.albums.map((album) => [album.id, album.imageUrl]));
+    libraryCache = data;
 
     return data;
 };
@@ -171,88 +182,117 @@ const toGenre = (row: LocalGenreRow, serverId: string): Genre => ({
     songCount: null,
 });
 
-const toSong = (row: LocalSongRow, serverId: string): Song => ({
-    _itemType: LibraryItem.SONG,
-    _serverId: serverId,
-    _serverType: ServerType.LOCAL,
-    album: row.albumName,
-    albumArtistName: row.albumArtistName,
-    albumArtists: [
-        {
-            id: `loc-ar-${row.albumArtistName.toLowerCase()}`,
-            imageId: null,
-            imageUrl: row.imageUrl,
-            name: row.albumArtistName,
-            userFavorite: false,
-            userRating: null,
-        },
-    ],
-    albumId: row.albumId,
-    artistName: row.artistName,
-    artists: [
-        {
-            id: `loc-ar-${row.artistName.toLowerCase()}`,
-            imageId: null,
-            imageUrl: row.imageUrl,
-            name: row.artistName,
-            userFavorite: false,
-            userRating: null,
-        },
-    ],
-    bitDepth: null,
-    bitRate: row.bitRate,
-    blurHash: null,
-    bpm: null,
-    channels: row.channels,
-    codec: row.codec,
-    comment: null,
-    compilation: false,
-    container: row.codec,
-    createdAt: '',
-    date: null,
-    discNumber: row.discNumber,
-    discSubtitle: null,
-    duration: row.duration * 1000,
-    explicitStatus: null,
-    folderId: null,
-    gain: null,
-    genres: (row.genreIds ?? []).map((id, index) =>
-        toGenre({ id, name: row.genreNames?.[index] ?? '' }, serverId),
-    ),
-    id: row.id,
-    imageId: null,
-    imageUrl: row.imageUrl ?? albumImageById.get(row.albumId) ?? null,
-    lastPlayedAt: null,
-    libraryId: null,
-    libraryName: null,
-    lyrics: row.lyrics,
-    mbzAlbumId: null,
-    mbzAlbumType: null,
-    mbzRecordingId: null,
-    mbzReleaseGroupId: null,
-    mbzTrackId: null,
-    missing: false,
-    name: row.name,
-    originalDate: null,
-    originalYear: null,
-    participants: null,
-    path: row.path,
-    peak: null,
-    playCount: row.playCount,
-    releaseDate: null,
-    releaseYear: row.year,
-    sampleRate: row.sampleRate,
-    size: row.size,
-    sortName: row.name.toLowerCase(),
-    tags: null,
-    thumbHash: null,
-    trackNumber: row.trackNumber,
-    trackSubtitle: null,
-    updatedAt: '',
-    userFavorite: row.userFavorite,
-    userRating: null,
-    year: row.year,
-});
+const imagePathFromUrl = (imageUrl: null | string) =>
+    imageUrl ? decodeURIComponent(imageUrl.replace(/^ktm:\/\/local\/img\//, '')) : null;
+
+const resolveLocalImage = (library: LocalLibrarySnapshot, id: null | string) => {
+    if (!id) {
+        return null;
+    }
+
+    const song = library.songs.find((s) => s.id === id);
+    if (song?.imageUrl) {
+        return song.imageUrl;
+    }
+
+    const album = library.albums.find((a) => a.id === id);
+    if (album?.imageUrl) {
+        return album.imageUrl;
+    }
+
+    if (id.startsWith('loc-')) {
+        return null;
+    }
+
+    return `ktm://local/img/${encodeURIComponent(id)}`;
+};
+
+const toSong = (row: LocalSongRow, serverId: string): Song => {
+    const imageUrl = row.imageUrl ?? albumImageById.get(row.albumId) ?? null;
+
+    return {
+        _itemType: LibraryItem.SONG,
+        _serverId: serverId,
+        _serverType: ServerType.LOCAL,
+        album: row.albumName,
+        albumArtistName: row.albumArtistName,
+        albumArtists: [
+            {
+                id: `loc-ar-${row.albumArtistName.toLowerCase()}`,
+                imageId: imagePathFromUrl(imageUrl),
+                imageUrl,
+                name: row.albumArtistName,
+                userFavorite: false,
+                userRating: null,
+            },
+        ],
+        albumId: row.albumId,
+        artistName: row.artistName,
+        artists: [
+            {
+                id: `loc-ar-${row.artistName.toLowerCase()}`,
+                imageId: imagePathFromUrl(imageUrl),
+                imageUrl,
+                name: row.artistName,
+                userFavorite: false,
+                userRating: null,
+            },
+        ],
+        bitDepth: null,
+        bitRate: row.bitRate,
+        blurHash: null,
+        bpm: null,
+        channels: row.channels,
+        codec: row.codec,
+        comment: null,
+        compilation: false,
+        container: row.codec,
+        createdAt: '',
+        date: null,
+        discNumber: row.discNumber,
+        discSubtitle: null,
+        duration: row.duration * 1000,
+        explicitStatus: null,
+        folderId: null,
+        gain: null,
+        genres: (row.genreIds ?? []).map((id, index) =>
+            toGenre({ id, name: row.genreNames?.[index] ?? '' }, serverId),
+        ),
+        id: row.id,
+        imageId: imagePathFromUrl(imageUrl),
+        imageUrl,
+        lastPlayedAt: null,
+        libraryId: null,
+        libraryName: null,
+        lyrics: row.lyrics,
+        mbzAlbumId: null,
+        mbzAlbumType: null,
+        mbzRecordingId: null,
+        mbzReleaseGroupId: null,
+        mbzTrackId: null,
+        missing: false,
+        name: row.name,
+        originalDate: null,
+        originalYear: null,
+        participants: null,
+        path: row.path,
+        peak: null,
+        playCount: row.playCount,
+        releaseDate: null,
+        releaseYear: row.year,
+        sampleRate: row.sampleRate,
+        size: row.size,
+        sortName: row.name.toLowerCase(),
+        tags: null,
+        thumbHash: null,
+        trackNumber: row.trackNumber,
+        trackSubtitle: null,
+        updatedAt: '',
+        userFavorite: row.userFavorite,
+        userRating: null,
+        year: row.year,
+    };
+};
 
 const toAlbum = (row: LocalAlbumRow, serverId: string): Album => ({
     _itemType: LibraryItem.ALBUM,
@@ -262,7 +302,7 @@ const toAlbum = (row: LocalAlbumRow, serverId: string): Album => ({
     albumArtists: [
         {
             id: `loc-ar-${row.artistName.toLowerCase()}`,
-            imageId: null,
+            imageId: imagePathFromUrl(row.imageUrl),
             imageUrl: row.imageUrl,
             name: row.artistName,
             userFavorite: false,
@@ -282,7 +322,7 @@ const toAlbum = (row: LocalAlbumRow, serverId: string): Album => ({
         toGenre({ id, name: row.genreNames?.[index] ?? '' }, serverId),
     ),
     id: row.id,
-    imageId: null,
+    imageId: imagePathFromUrl(row.imageUrl),
     imageUrl: row.imageUrl,
     isCompilation: false,
     lastPlayedAt: null,
@@ -325,7 +365,7 @@ const toAlbumArtist = (row: LocalArtistRow, serverId: string): AlbumArtist => ({
     duration: null,
     genres: [],
     id: row.id,
-    imageId: null,
+    imageId: imagePathFromUrl(row.imageUrl),
     imageUrl: row.imageUrl,
     lastPlayedAt: null,
     mbz: null,
@@ -609,7 +649,7 @@ export const LocalController: InternalControllerEndpoint = {
             _serverType: ServerType.LOCAL,
             children: { folders: [], songs: [] },
             id,
-            imageId: null,
+            imageId: imagePathFromUrl(imageUrl),
             imageUrl,
             name,
             parentId,
@@ -731,13 +771,19 @@ export const LocalController: InternalControllerEndpoint = {
         };
     },
     getImageRequest: ({ query }) => {
+        const imageUrl = resolveLocalImage(libraryCache, query.id);
+
+        if (!imageUrl) {
+            return null;
+        }
+
         return {
             cacheKey: `${query.id}-${query.size ?? 0}`,
-            url: `ktm://local/img/${encodeURIComponent(query.id)}`,
+            url: imageUrl,
         };
     },
     getImageUrl: ({ query }) => {
-        return `ktm://local/img/${encodeURIComponent(query.id)}`;
+        return resolveLocalImage(libraryCache, query.id) ?? '';
     },
     getInternetRadioStations: async () => [],
     getLyrics: async ({ query }) => {
