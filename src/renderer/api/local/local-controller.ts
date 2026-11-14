@@ -84,10 +84,14 @@ type LocalSongRow = {
     year: null | number;
 };
 
+let albumImageById = new Map<string, null | string>();
+
 const getLibrary = async (): Promise<LocalLibraryData> => {
     const data = (await window.api.localLibrary.getLibrary()) as LocalLibraryData | undefined;
 
     if (!data) {
+        albumImageById = new Map();
+
         return {
             albums: [],
             artists: [],
@@ -98,6 +102,8 @@ const getLibrary = async (): Promise<LocalLibraryData> => {
             songs: [],
         };
     }
+
+    albumImageById = new Map(data.albums.map((album) => [album.id, album.imageUrl]));
 
     return data;
 };
@@ -215,7 +221,7 @@ const toSong = (row: LocalSongRow, serverId: string): Song => ({
     ),
     id: row.id,
     imageId: null,
-    imageUrl: row.imageUrl,
+    imageUrl: row.imageUrl ?? albumImageById.get(row.albumId) ?? null,
     lastPlayedAt: null,
     libraryId: null,
     libraryName: null,

@@ -99,10 +99,10 @@ const getLibraryPath = () => join(app.getPath('userData'), LIBRARY_FILE);
 
 const getCoverCacheDir = () => join(app.getPath('userData'), 'local-covers');
 
-const writeEmbeddedCover = async (
-    key: string,
-    picture: { data: Uint8Array; format: string },
-): Promise<null | string> => {
+const writeEmbeddedCover = async (picture: {
+    data: Uint8Array;
+    format: string;
+}): Promise<null | string> => {
     if (picture.data.length > 12 * 1024 * 1024) {
         return null;
     }
@@ -112,7 +112,9 @@ const writeEmbeddedCover = async (
         : picture.format.includes('webp')
           ? '.webp'
           : '.jpg';
-    const file = join(getCoverCacheDir(), `${sha1(key).slice(0, 20)}${ext}`);
+
+    const digest = createHash('sha1').update(picture.data).digest('hex');
+    const file = join(getCoverCacheDir(), `${digest.slice(0, 20)}${ext}`);
 
     try {
         await fs.access(file);
@@ -314,31 +316,37 @@ const scanFile = async (filePath: string, songs: LocalSong[]) => {
     const songId = songIdFor(filePath);
     const albumId = albumIdFor(albumArtistName, albumName);
 
-    let cover = statCache.get(songDir);
+    let imagePath: null | string = null;
 
-    if (!cover) {
-        cover = { cover: null, size: stat?.size ?? 0 };
-        statCache.set(songDir, cover);
+    if (embeddedPicture) {
+        imagePath = await writeEmbeddedCover(embeddedPicture);
+    }
 
-        try {
-            const siblings = await fs.readdir(songDir, { withFileTypes: true });
+    if (!imagePath) {
+        let folderCover = statCache.get(songDir);
 
-            for (const entry of siblings) {
-                if (entry.isFile() && IMAGE_EXTENSIONS.has(extname(entry.name).toLowerCase())) {
-                    cover.cover = join(songDir, entry.name);
-                    break;
+        if (!folderCover) {
+            folderCover = { cover: null, size: stat?.size ?? 0 };
+            statCache.set(songDir, folderCover);
+
+            try {
+                const siblings = await fs.readdir(songDir, { withFileTypes: true });
+
+                for (const entry of siblings) {
+                    if (entry.isFile() && IMAGE_EXTENSIONS.has(extname(entry.name).toLowerCase())) {
+                        folderCover.cover = join(songDir, entry.name);
+                        break;
+                    }
                 }
+            } catch {
+                statCache.set(songDir, { cover: null, size: stat?.size ?? 0 });
             }
-        } catch {
-            statCache.set(songDir, { cover: null, size: stat?.size ?? 0 });
         }
+
+        imagePath = folderCover?.cover ?? null;
     }
 
-    if (!cover.cover && embeddedPicture) {
-        cover.cover = await writeEmbeddedCover(albumId, embeddedPicture);
-    }
-
-    const imageUrl = cover?.cover ? `ktm://local/img/${encodeURIComponent(cover.cover)}` : null;
+    const imageUrl = imagePath ? `ktm://local/img/${encodeURIComponent(imagePath)}` : null;
 
     songs.push({
         albumArtistName,
@@ -442,6 +450,40 @@ const buildAggregates = (songs: LocalSong[]) => {
     return { albumList, artistList };
 };
 
+const unifyAlbumCovers = (songs: LocalSong[]) => {
+    const coversByAlbum = new Map<string, null | string>();
+
+    for (const song of songs) {
+        if (!song.imageUrl) {
+            continue;
+        }
+
+        const isFolderImage = !song.imageUrl.includes('local-covers');
+
+        if (!coversByAlbum.has(song.albumId)) {
+            coversByAlbum.set(song.albumId, song.imageUrl);
+            continue;
+        }
+
+        const current = coversByAlbum.get(song.albumId) as string;
+
+        if (isFolderImage && !current.includes('local-covers')) {
+            continue;
+        }
+
+        if (!isFolderImage && current.includes('local-covers')) {
+            coversByAlbum.set(song.albumId, song.imageUrl);
+        }
+    }
+
+    for (const song of songs) {
+        const cover = coversByAlbum.get(song.albumId);
+        if (cover) {
+            song.imageUrl = cover;
+        }
+    }
+};
+
 const startScan = async () => {
     if (libraryData.scanning) {
         return { started: false };
@@ -467,6 +509,8 @@ const startScan = async () => {
             }
         }
 
+        unifyAlbumCovers(songs);
+
         const { albumList, artistList } = buildAggregates(songs);
 
         libraryData.songs = songs;
@@ -484,6 +528,37 @@ const startScan = async () => {
 };
 
 const getSongById = (songId: string) => libraryData.songs.find((song) => song.id === songId);
+
+const stripImagePrefix = (imageUrl: string) =>
+    decodeURIComponent(imageUrl.replace(/^ktm:\/\/local\/img\//, ''));
+
+const isKnownCoverPath = (imgPath: string) => {
+    if (imgPath.includes('..')) {
+        return false;
+    }
+
+    const normalizedPath = normalize(imgPath);
+
+    if (normalize(getCoverCacheDir()).startsWith(normalizedPath)) {
+        return true;
+    }
+
+    const known = new Set<string>();
+
+    for (const song of libraryData.songs) {
+        if (song.imageUrl) {
+            known.add(normalize(stripImagePrefix(song.imageUrl)));
+        }
+    }
+
+    for (const album of libraryData.albums) {
+        if (album.imageUrl) {
+            known.add(normalize(stripImagePrefix(album.imageUrl)));
+        }
+    }
+
+    return known.has(normalizedPath);
+};
 
 export const handleKtmLocalRoute = async (request: Request) => {
     const url = new URL(request.url);
@@ -505,9 +580,34 @@ export const handleKtmLocalRoute = async (request: Request) => {
     if (parts[0] === 'img' && parts[1]) {
         const imgPath = decodeURIComponent(parts[1]);
 
-        const imgIsSafe = /^[a-zA-Z]:[\\/]/.test(imgPath) || normalize(imgPath).startsWith(sep);
+        if (imgPath.startsWith('loc-')) {
+            const bySong = getSongById(imgPath);
+            const byAlbum = libraryData.albums.find((a) => a.id === imgPath);
+            const coverPath = bySong?.imageUrl
+                ? decodeURIComponent(bySong.imageUrl.replace(/^ktm:\/\/local\/img\//, ''))
+                : byAlbum?.imageUrl
+                  ? decodeURIComponent(byAlbum.imageUrl.replace(/^ktm:\/\/local\/img\//, ''))
+                  : null;
 
-        if (!imgIsSafe || imgPath.includes('..')) {
+            if (!coverPath) {
+                return new Response(null, { status: 404, statusText: 'Not Found' });
+            }
+
+            try {
+                const payload = await fs.readFile(coverPath);
+
+                return new Response(payload, {
+                    headers: {
+                        'Access-Control-Allow-Origin': '*',
+                        'Content-Type': guessImageMime(coverPath),
+                    },
+                });
+            } catch {
+                return new Response(null, { status: 404, statusText: 'Not Found' });
+            }
+        }
+
+        if (!isKnownCoverPath(imgPath)) {
             return new Response(null, { status: 403, statusText: 'Forbidden' });
         }
 
