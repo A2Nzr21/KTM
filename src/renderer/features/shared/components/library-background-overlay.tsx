@@ -53,6 +53,14 @@ const resolveBackground = (themeBackground: string, backgroundColor?: string): s
     }
 };
 
+const safeGenerateColors = (color: string) => {
+    try {
+        return generateColors(color);
+    } catch {
+        return generateColors(FALLBACK_BACKGROUND);
+    }
+};
+
 interface BackgroundOverlayProps {
     backgroundColor?: string;
     direction?: string;
@@ -68,7 +76,7 @@ export const BackgroundOverlay = ({
 }: BackgroundOverlayProps) => {
     const theme = useAppThemeColors();
 
-    const colors = generateColors(
+    const colors = safeGenerateColors(
         resolveBackground(theme.color['--theme-colors-background'], backgroundColor),
     );
 
