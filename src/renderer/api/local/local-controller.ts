@@ -58,6 +58,14 @@ type LocalLibrarySnapshot = {
     songs: LocalSongRow[];
 };
 
+type LocalLookups = {
+    albumArtistIdByName: Map<string, string>;
+    albumById: Map<string, LocalAlbumRow>;
+    albumImageById: Map<string, null | string>;
+    artistImageById: Map<string, null | string>;
+    songById: Map<string, LocalSongRow>;
+};
+
 type LocalSongRow = {
     albumArtistName: string;
     albumId: string;
@@ -84,8 +92,17 @@ type LocalSongRow = {
     year: null | number;
 };
 
-let albumImageById = new Map<string, null | string>();
-let libraryCache: LocalLibrarySnapshot = {
+const emptyLookups = (): LocalLookups => ({
+    albumArtistIdByName: new Map(),
+    albumById: new Map(),
+    albumImageById: new Map(),
+    artistImageById: new Map(),
+    songById: new Map(),
+});
+
+let lookups: LocalLookups = emptyLookups();
+
+const EMPTY_LIBRARY: LocalLibrarySnapshot = {
     albums: [],
     artists: [],
     folders: [],
@@ -95,26 +112,23 @@ let libraryCache: LocalLibrarySnapshot = {
     songs: [],
 };
 
+const buildLookups = (data: LocalLibrarySnapshot): LocalLookups => ({
+    albumArtistIdByName: new Map(data.artists.map((artist) => [artist.name, artist.id])),
+    albumById: new Map(data.albums.map((album) => [album.id, album])),
+    albumImageById: new Map(data.albums.map((album) => [album.id, album.imageUrl])),
+    artistImageById: new Map(data.artists.map((artist) => [artist.id, artist.imageUrl])),
+    songById: new Map(data.songs.map((song) => [song.id, song])),
+});
+
 const getLibrary = async (): Promise<LocalLibraryData> => {
     const data = (await window.api.localLibrary.getLibrary()) as LocalLibraryData | undefined;
 
     if (!data) {
-        albumImageById = new Map();
-        libraryCache = {
-            albums: [],
-            artists: [],
-            folders: [],
-            genres: [],
-            scannedAt: null,
-            scanning: false,
-            songs: [],
-        };
-
-        return libraryCache;
+        lookups = emptyLookups();
+        return EMPTY_LIBRARY;
     }
 
-    albumImageById = new Map(data.albums.map((album) => [album.id, album.imageUrl]));
-    libraryCache = data;
+    lookups = buildLookups(data);
 
     return data;
 };
@@ -182,22 +196,115 @@ const toGenre = (row: LocalGenreRow, serverId: string): Genre => ({
     songCount: null,
 });
 
-const imagePathFromUrl = (imageUrl: null | string) =>
-    imageUrl ? decodeURIComponent(imageUrl.replace(/^ktm:\/\/local\/img\//, '')) : null;
+const filterSongs = (songs: LocalSongRow[], query: any) => {
+    let rows = songs;
 
-const resolveLocalImage = (library: LocalLibrarySnapshot, id: null | string) => {
+    if (query?.albumIds?.length) {
+        const wanted = new Set<string>(query.albumIds);
+        rows = rows.filter((s) => wanted.has(s.albumId));
+    }
+
+    if (query?.artistIds?.length || query?.albumArtistIds?.length) {
+        const wanted = new Set<string>([
+            ...(query.albumArtistIds ?? []),
+            ...(query.artistIds ?? []),
+        ]);
+        rows = rows.filter((s) => wanted.has(resolveArtistId(s.albumArtistName)));
+    }
+
+    if (query?.genreIds?.length) {
+        const wanted = new Set<string>(query.genreIds);
+        rows = rows.filter((s) => s.genreIds?.some((g) => wanted.has(g)));
+    }
+
+    if (query?.genre) {
+        const genre = query.genre as string;
+        const matchesGenre = (s: LocalSongRow) =>
+            s.genreNames?.includes(genre) || s.genreIds?.includes(genre);
+
+        rows = rows.filter(matchesGenre);
+    }
+
+    if (query?.favorite) {
+        rows = rows.filter((s) => s.userFavorite);
+    }
+
+    if (query?.searchTerm) {
+        rows = rows.filter(
+            (s) =>
+                matchesSearch(s.name, query.searchTerm as string) ||
+                matchesSearch(s.albumName, query.searchTerm as string) ||
+                matchesSearch(s.artistName, query.searchTerm as string),
+        );
+    }
+
+    return rows;
+};
+
+const filterAlbums = (albums: LocalAlbumRow[], query: any) => {
+    let rows = albums;
+
+    if (query?.artistIds?.length || query?.albumArtistIds?.length) {
+        const ids = new Set<string>([...(query.albumArtistIds ?? []), ...(query.artistIds ?? [])]);
+        const names = new Set<string>();
+
+        for (const [name, id] of lookups.albumArtistIdByName) {
+            if (ids.has(id)) {
+                names.add(name);
+            }
+        }
+
+        rows = rows.filter((a) => names.has(a.artistName));
+    }
+
+    if (query?.searchTerm) {
+        rows = rows.filter(
+            (a) =>
+                matchesSearch(a.name, query.searchTerm as string) ||
+                matchesSearch(a.artistName, query.searchTerm as string),
+        );
+    }
+
+    if (query?.favorite) {
+        rows = [];
+    }
+
+    if (query?.genreIds?.length) {
+        const wanted = new Set<string>(query.genreIds);
+        rows = rows.filter((a) => a.genreIds?.some((g) => wanted.has(g)));
+    }
+
+    if (query?.minYear) {
+        rows = rows.filter((a) => (a.year ?? 0) >= (query.minYear as number));
+    }
+
+    if (query?.maxYear) {
+        rows = rows.filter((a) => (a.year ?? 0) <= (query.maxYear as number));
+    }
+
+    return rows;
+};
+
+const resolveArtistId = (name: string) => lookups.albumArtistIdByName.get(name) ?? '';
+
+const resolveLocalImage = (id: null | string) => {
     if (!id) {
         return null;
     }
 
-    const song = library.songs.find((s) => s.id === id);
+    const song = lookups.songById.get(id);
     if (song?.imageUrl) {
         return song.imageUrl;
     }
 
-    const album = library.albums.find((a) => a.id === id);
+    const album = lookups.albumById.get(id);
     if (album?.imageUrl) {
         return album.imageUrl;
+    }
+
+    const artist = lookups.artistImageById.get(id);
+    if (artist) {
+        return artist;
     }
 
     if (id.startsWith('loc-')) {
@@ -208,7 +315,7 @@ const resolveLocalImage = (library: LocalLibrarySnapshot, id: null | string) => 
 };
 
 const toSong = (row: LocalSongRow, serverId: string): Song => {
-    const imageUrl = row.imageUrl ?? albumImageById.get(row.albumId) ?? null;
+    const imageUrl = row.imageUrl ?? lookups.albumImageById.get(row.albumId) ?? null;
 
     return {
         _itemType: LibraryItem.SONG,
@@ -218,8 +325,8 @@ const toSong = (row: LocalSongRow, serverId: string): Song => {
         albumArtistName: row.albumArtistName,
         albumArtists: [
             {
-                id: `loc-ar-${row.albumArtistName.toLowerCase()}`,
-                imageId: imagePathFromUrl(imageUrl),
+                id: resolveArtistId(row.albumArtistName),
+                imageId: row.albumId,
                 imageUrl,
                 name: row.albumArtistName,
                 userFavorite: false,
@@ -230,8 +337,8 @@ const toSong = (row: LocalSongRow, serverId: string): Song => {
         artistName: row.artistName,
         artists: [
             {
-                id: `loc-ar-${row.artistName.toLowerCase()}`,
-                imageId: imagePathFromUrl(imageUrl),
+                id: resolveArtistId(row.artistName),
+                imageId: row.albumId,
                 imageUrl,
                 name: row.artistName,
                 userFavorite: false,
@@ -259,7 +366,7 @@ const toSong = (row: LocalSongRow, serverId: string): Song => {
             toGenre({ id, name: row.genreNames?.[index] ?? '' }, serverId),
         ),
         id: row.id,
-        imageId: imagePathFromUrl(imageUrl),
+        imageId: row.id,
         imageUrl,
         lastPlayedAt: null,
         libraryId: null,
@@ -301,8 +408,8 @@ const toAlbum = (row: LocalAlbumRow, serverId: string): Album => ({
     albumArtistName: row.artistName,
     albumArtists: [
         {
-            id: `loc-ar-${row.artistName.toLowerCase()}`,
-            imageId: imagePathFromUrl(row.imageUrl),
+            id: resolveArtistId(row.artistName),
+            imageId: row.id,
             imageUrl: row.imageUrl,
             name: row.artistName,
             userFavorite: false,
@@ -322,7 +429,7 @@ const toAlbum = (row: LocalAlbumRow, serverId: string): Album => ({
         toGenre({ id, name: row.genreNames?.[index] ?? '' }, serverId),
     ),
     id: row.id,
-    imageId: imagePathFromUrl(row.imageUrl),
+    imageId: row.id,
     imageUrl: row.imageUrl,
     isCompilation: false,
     lastPlayedAt: null,
@@ -365,7 +472,7 @@ const toAlbumArtist = (row: LocalArtistRow, serverId: string): AlbumArtist => ({
     duration: null,
     genres: [],
     id: row.id,
-    imageId: imagePathFromUrl(row.imageUrl),
+    imageId: row.id,
     imageUrl: row.imageUrl,
     lastPlayedAt: null,
     mbz: null,
@@ -392,17 +499,27 @@ const sortRows = <T>(
         const av = valueOf(a);
         const bv = valueOf(b);
 
-        if (av === null || bv === null) {
+        if (av === null && bv === null) {
             return 0;
         }
 
-        if (typeof av === 'number' && typeof bv === 'number') {
-            return sortOrder === SortOrder.ASC ? av - bv : bv - av;
+        if (av === null) {
+            return sortOrder === SortOrder.ASC ? 1 : -1;
         }
 
-        return sortOrder === SortOrder.ASC
-            ? compare(String(av), String(bv))
-            : compare(String(bv), String(av));
+        if (bv === null) {
+            return sortOrder === SortOrder.ASC ? -1 : 1;
+        }
+
+        let result: number;
+
+        if (typeof av === 'number' && typeof bv === 'number') {
+            result = av - bv;
+        } else {
+            result = compare(String(av), String(bv));
+        }
+
+        return sortOrder === SortOrder.ASC ? result : -result;
     });
 
     return sorted;
@@ -495,6 +612,7 @@ export const LocalController: InternalControllerEndpoint = {
 
         return toAlbumArtist(row, apiClientProps.serverId);
     },
+    getAlbumArtistInfo: async () => null,
     getAlbumArtistList: async (args) => {
         const library = await getLibrary();
         const { query } = args as ReplaceApiClientProps<any>;
@@ -542,32 +660,7 @@ export const LocalController: InternalControllerEndpoint = {
         const { query } = args as ReplaceApiClientProps<any>;
         const serverId = args.apiClientProps.serverId;
 
-        let rows = library.albums;
-
-        if (query?.searchTerm) {
-            rows = rows.filter(
-                (a) =>
-                    matchesSearch(a.name, query.searchTerm as string) ||
-                    matchesSearch(a.artistName, query.searchTerm as string),
-            );
-        }
-
-        if (query?.favorite) {
-            rows = [];
-        }
-
-        if (query?.genreIds?.length) {
-            const wanted = new Set(query.genreIds);
-            rows = rows.filter((a) => a.genreIds?.some((g) => wanted.has(g)));
-        }
-
-        if (query?.minYear) {
-            rows = rows.filter((a) => (a.year ?? 0) >= (query.minYear as number));
-        }
-
-        if (query?.maxYear) {
-            rows = rows.filter((a) => (a.year ?? 0) <= (query.maxYear as number));
-        }
+        let rows = filterAlbums(library.albums, query);
 
         if (query?.sortBy === AlbumListSort.RANDOM) {
             rows = shuffle(rows);
@@ -587,14 +680,7 @@ export const LocalController: InternalControllerEndpoint = {
         const library = await getLibrary();
         const { query } = args as ReplaceApiClientProps<any>;
 
-        let rows = library.albums;
-
-        if (query?.genreIds?.length) {
-            const wanted = new Set(query.genreIds);
-            rows = rows.filter((a) => a.genreIds?.some((g) => wanted.has(g)));
-        }
-
-        return rows.length;
+        return filterAlbums(library.albums, query).length;
     },
     getAlbumRadio: async () => [],
     getArtistList: async (args) => {
@@ -649,7 +735,7 @@ export const LocalController: InternalControllerEndpoint = {
             _serverType: ServerType.LOCAL,
             children: { folders: [], songs: [] },
             id,
-            imageId: imagePathFromUrl(imageUrl),
+            imageId: null,
             imageUrl,
             name,
             parentId,
@@ -771,7 +857,7 @@ export const LocalController: InternalControllerEndpoint = {
         };
     },
     getImageRequest: ({ query }) => {
-        const imageUrl = resolveLocalImage(libraryCache, query.id);
+        const imageUrl = resolveLocalImage(query.id);
 
         if (!imageUrl) {
             return null;
@@ -783,7 +869,7 @@ export const LocalController: InternalControllerEndpoint = {
         };
     },
     getImageUrl: ({ query }) => {
-        return resolveLocalImage(libraryCache, query.id) ?? '';
+        return resolveLocalImage(query.id) ?? '';
     },
     getInternetRadioStations: async () => [],
     getLyrics: async ({ query }) => {
@@ -827,11 +913,7 @@ export const LocalController: InternalControllerEndpoint = {
         const library = await getLibrary();
         const { query } = args as ReplaceApiClientProps<any>;
 
-        let rows = library.songs;
-
-        if (query?.genre) {
-            rows = rows.filter((s) => s.genreIds?.includes(query.genre as string));
-        }
+        const rows = filterSongs(library.songs, query);
 
         return {
             items: shuffle(rows)
@@ -898,35 +980,7 @@ export const LocalController: InternalControllerEndpoint = {
         const { query } = args as ReplaceApiClientProps<any>;
         const serverId = args.apiClientProps.serverId;
 
-        let rows = library.songs;
-
-        if (query?.albumIds?.length) {
-            const wanted = new Set(query.albumIds);
-            rows = rows.filter((s) => wanted.has(s.albumId));
-        }
-
-        if (query?.artistIds?.length || query?.albumArtistIds?.length) {
-            const wanted = new Set([...(query.albumArtistIds ?? []), ...(query.artistIds ?? [])]);
-            rows = rows.filter((s) => wanted.has(`loc-ar-${s.albumArtistName.toLowerCase()}`));
-        }
-
-        if (query?.genreIds?.length) {
-            const wanted = new Set(query.genreIds);
-            rows = rows.filter((s) => s.genreIds?.some((g) => wanted.has(g)));
-        }
-
-        if (query?.favorite) {
-            rows = rows.filter((s) => s.userFavorite);
-        }
-
-        if (query?.searchTerm) {
-            rows = rows.filter(
-                (s) =>
-                    matchesSearch(s.name, query.searchTerm as string) ||
-                    matchesSearch(s.albumName, query.searchTerm as string) ||
-                    matchesSearch(s.artistName, query.searchTerm as string),
-            );
-        }
+        let rows = filterSongs(library.songs, query);
 
         if (query?.sortBy === SongListSort.RANDOM) {
             rows = shuffle(rows);
@@ -952,23 +1006,7 @@ export const LocalController: InternalControllerEndpoint = {
         const library = await getLibrary();
         const { query } = args as ReplaceApiClientProps<any>;
 
-        let rows = library.songs;
-
-        if (query?.albumIds?.length) {
-            const wanted = new Set(query.albumIds);
-            rows = rows.filter((s) => wanted.has(s.albumId));
-        }
-
-        if (query?.favorite) {
-            rows = rows.filter((s) => s.userFavorite);
-        }
-
-        if (query?.genreIds?.length) {
-            const wanted = new Set(query.genreIds);
-            rows = rows.filter((s) => s.genreIds?.some((g) => wanted.has(g)));
-        }
-
-        return rows.length;
+        return filterSongs(library.songs, query).length;
     },
     getStreamUrl: ({ query }) => {
         return Promise.resolve(`ktm://local/stream/${encodeURIComponent(query.id)}`);

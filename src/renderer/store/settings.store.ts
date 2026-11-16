@@ -2069,7 +2069,7 @@ const initialState: SettingsState = {
         followScrollAlignment: 0,
         lineLeadTimeMs: 800,
         performanceMode: false,
-        preferLocalLyrics: true,
+        preferLocalLyrics: false,
         showMatch: false,
         showProvider: false,
         sources: [LyricSource.NETEASE, LyricSource.LRCLIB],
@@ -2969,10 +2969,14 @@ export const useSettingsStore = createWithEqualityFn<SettingsSlice>()(
                     state.lyrics.visualStyle = 'dynamic';
                 }
 
+                if (version < 40) {
+                    state.lyrics.preferLocalLyrics = false;
+                }
+
                 return persistedState;
             },
             name: 'store_settings',
-            version: 39,
+            version: 40,
         },
     ),
 );

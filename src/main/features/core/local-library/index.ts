@@ -442,7 +442,9 @@ const buildAggregates = (songs: LocalSong[]) => {
     const artistList = [...artists.values()];
 
     for (const artist of artistList) {
-        artist.albumCount = albumList.filter((a) => a.artistName === artist.name).length;
+        const artistAlbums = albumList.filter((a) => a.artistName === artist.name);
+        artist.albumCount = artistAlbums.length;
+        artist.imageUrl = artistAlbums.find((a) => a.imageUrl)?.imageUrl ?? null;
     }
 
     libraryData.genres = [...genres.values()].sort((a, b) => a.name.localeCompare(b.name));
@@ -451,35 +453,38 @@ const buildAggregates = (songs: LocalSong[]) => {
 };
 
 const unifyAlbumCovers = (songs: LocalSong[]) => {
-    const coversByAlbum = new Map<string, null | string>();
+    const coverCacheDir = normalize(getCoverCacheDir()) + sep;
+
+    const isEmbeddedCover = (imageUrl: string) =>
+        normalize(decodeURIComponent(imageUrl.replace(/^ktm:\/\/local\/img\//, ''))).startsWith(
+            coverCacheDir,
+        );
+
+    const coversByAlbum = new Map<string, { isFolder: boolean; url: string }>();
 
     for (const song of songs) {
         if (!song.imageUrl) {
             continue;
         }
 
-        const isFolderImage = !song.imageUrl.includes('local-covers');
+        const candidate = { isFolder: !isEmbeddedCover(song.imageUrl), url: song.imageUrl };
+        const current = coversByAlbum.get(song.albumId);
 
-        if (!coversByAlbum.has(song.albumId)) {
-            coversByAlbum.set(song.albumId, song.imageUrl);
+        if (!current) {
+            coversByAlbum.set(song.albumId, candidate);
             continue;
         }
 
-        const current = coversByAlbum.get(song.albumId) as string;
-
-        if (isFolderImage && !current.includes('local-covers')) {
-            continue;
-        }
-
-        if (!isFolderImage && current.includes('local-covers')) {
-            coversByAlbum.set(song.albumId, song.imageUrl);
+        if (candidate.isFolder && !current.isFolder) {
+            coversByAlbum.set(song.albumId, candidate);
         }
     }
 
     for (const song of songs) {
         const cover = coversByAlbum.get(song.albumId);
+
         if (cover) {
-            song.imageUrl = cover;
+            song.imageUrl = cover.url;
         }
     }
 };
@@ -492,35 +497,40 @@ const startScan = async () => {
     libraryData.scanning = true;
 
     const scanLibrary = async () => {
-        statCache.clear();
+        try {
+            statCache.clear();
 
-        const songs: LocalSong[] = [];
+            const songs: LocalSong[] = [];
 
-        for (const folder of libraryData.folders) {
-            await walkDirs(folder, songs);
-        }
-
-        for (const song of songs) {
-            const existing = libraryData.songs.find((s) => s.id === song.id);
-
-            if (existing) {
-                song.playCount = existing.playCount;
-                song.userFavorite = existing.userFavorite;
+            for (const folder of libraryData.folders) {
+                await walkDirs(folder, songs);
             }
+
+            for (const song of songs) {
+                const existing = libraryData.songs.find((s) => s.id === song.id);
+
+                if (existing) {
+                    song.playCount = existing.playCount;
+                    song.userFavorite = existing.userFavorite;
+                }
+            }
+
+            unifyAlbumCovers(songs);
+
+            const { albumList, artistList } = buildAggregates(songs);
+
+            libraryData.songs = songs;
+            libraryData.albums = albumList;
+            libraryData.artists = artistList;
+            libraryData.scannedAt = new Date().toISOString();
+
+            await saveLibrary();
+            log.info('local-library: scan complete', { songs: songs.length });
+        } catch (error) {
+            log.error('local-library: scan failed', error);
+        } finally {
+            libraryData.scanning = false;
         }
-
-        unifyAlbumCovers(songs);
-
-        const { albumList, artistList } = buildAggregates(songs);
-
-        libraryData.songs = songs;
-        libraryData.albums = albumList;
-        libraryData.artists = artistList;
-        libraryData.scannedAt = new Date().toISOString();
-        libraryData.scanning = false;
-
-        await saveLibrary();
-        log.info('local-library: scan complete', { songs: songs.length });
     };
 
     void scanLibrary();
@@ -583,15 +593,14 @@ export const handleKtmLocalRoute = async (request: Request) => {
         if (imgPath.startsWith('loc-')) {
             const bySong = getSongById(imgPath);
             const byAlbum = libraryData.albums.find((a) => a.id === imgPath);
-            const coverPath = bySong?.imageUrl
-                ? decodeURIComponent(bySong.imageUrl.replace(/^ktm:\/\/local\/img\//, ''))
-                : byAlbum?.imageUrl
-                  ? decodeURIComponent(byAlbum.imageUrl.replace(/^ktm:\/\/local\/img\//, ''))
-                  : null;
+            const byArtist = libraryData.artists.find((a) => a.id === imgPath);
+            const coverUrl = bySong?.imageUrl ?? byAlbum?.imageUrl ?? byArtist?.imageUrl ?? null;
 
-            if (!coverPath) {
+            if (!coverUrl) {
                 return new Response(null, { status: 404, statusText: 'Not Found' });
             }
+
+            const coverPath = decodeURIComponent(coverUrl.replace(/^ktm:\/\/local\/img\//, ''));
 
             try {
                 const payload = await fs.readFile(coverPath);
@@ -732,9 +741,13 @@ const registerIpc = () => {
     });
 
     ipcMain.handle('local-library:add-folder', async (_event, folder: string) => {
+        if (typeof folder !== 'string' || !folder) {
+            return { added: false };
+        }
+
         const folderIsSafe = /^[a-zA-Z]:[\\/]/.test(folder) || normalize(folder).startsWith(sep);
 
-        if (typeof folder !== 'string' || !folderIsSafe) {
+        if (!folderIsSafe) {
             return { added: false };
         }
 

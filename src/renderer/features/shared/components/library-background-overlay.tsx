@@ -31,6 +31,28 @@ export const LibraryBackgroundOverlay = ({
     );
 };
 
+const FALLBACK_BACKGROUND = '#0c0c0c';
+
+const resolveBackground = (themeBackground: string, backgroundColor?: string): string => {
+    if (backgroundColor && !backgroundColor.startsWith('var(')) {
+        return backgroundColor;
+    }
+
+    if (!themeBackground.startsWith('var(')) {
+        return themeBackground;
+    }
+
+    try {
+        return (
+            getComputedStyle(document.documentElement)
+                .getPropertyValue('--theme-colors-background')
+                .trim() || FALLBACK_BACKGROUND
+        );
+    } catch {
+        return FALLBACK_BACKGROUND;
+    }
+};
+
 interface BackgroundOverlayProps {
     backgroundColor?: string;
     direction?: string;
@@ -46,7 +68,9 @@ export const BackgroundOverlay = ({
 }: BackgroundOverlayProps) => {
     const theme = useAppThemeColors();
 
-    const colors = generateColors(backgroundColor || theme.color['--theme-colors-background']);
+    const colors = generateColors(
+        resolveBackground(theme.color['--theme-colors-background'], backgroundColor),
+    );
 
     return (
         <div
